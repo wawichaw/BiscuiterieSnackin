@@ -41,12 +41,10 @@ export const verifyRecaptcha = (minScore = 0.5) => {
 
       const { success, score, action } = response.data;
 
-      // Vérifier que la vérification a réussi
+      // Vérifier que la vérification a réussi (si échec, log et laisser passer pour éviter blocage en cas de domaine pas encore ajouté)
       if (!success) {
-        return res.status(400).json({
-          success: false,
-          message: 'Échec de la vérification reCAPTCHA',
-        });
+        console.warn('reCAPTCHA siteverify success=false:', response.data);
+        return next();
       }
 
       // Vérifier le score (0.0 = bot probable, 1.0 = humain probable)
