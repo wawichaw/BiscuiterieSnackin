@@ -1,11 +1,17 @@
 import nodemailer from 'nodemailer';
 import { Resend } from 'resend';
+import sgMail from '@sendgrid/mail';
 
-// Sur Render (et beaucoup d'hébergeurs), le SMTP sortant (port 587) est bloqué → timeout.
-// Si RESEND_API_KEY est défini, on utilise l'API Resend (HTTPS) qui fonctionne partout.
-const useResend = () => !!process.env.RESEND_API_KEY;
+// Sur Render, le SMTP (port 587) est bloqué → timeout. On utilise une API (HTTPS) :
+// - SendGrid : vérifier UNE adresse par email (pas de DNS) → le plus simple.
+// - Resend : sinon (nécessite domaine vérifié pour envoyer à tous).
+const useSendGrid = () => !!process.env.SENDGRID_API_KEY;
+const useResend = () => !useSendGrid() && !!process.env.RESEND_API_KEY;
 
 const getFromEmail = () => {
+  if (useSendGrid()) {
+    return process.env.SENDGRID_FROM || 'Snackin\' <snackin.mtl@gmail.com>';
+  }
   if (useResend()) {
     return process.env.RESEND_FROM || 'Snackin\' <onboarding@resend.dev>';
   }
@@ -27,17 +33,29 @@ const getTransporter = () => {
   });
 };
 
-/** Envoi générique : Resend (API) si RESEND_API_KEY est défini, sinon SMTP */
+// Éviter de dépasser la limite Resend (2 req/s) : attendre 1 s entre deux envois
+let lastResendSend = 0;
+const resendThrottleMs = 1100;
+
+/** Envoi : SendGrid (simple) > Resend > SMTP */
 const sendEmail = async (to, subject, text, html) => {
   const from = getFromEmail();
+
+  if (useSendGrid()) {
+    sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+    const [res] = await sgMail.send({ to, from, subject, html, text });
+    console.log('✅ Email envoyé via SendGrid');
+    return { success: true, messageId: res?.headers?.['x-message-id'] };
+  }
+
   if (useResend()) {
+    const now = Date.now();
+    const wait = lastResendSend ? Math.max(0, resendThrottleMs - (now - lastResendSend)) : 0;
+    if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+    lastResendSend = Date.now();
     const resend = new Resend(process.env.RESEND_API_KEY);
     const { data, error } = await resend.emails.send({
-      from: from,
-      to: [to],
-      subject,
-      html,
-      text,
+      from, to: [to], subject, html, text,
     });
     if (error) {
       console.error('❌ Resend error:', error);
@@ -46,6 +64,7 @@ const sendEmail = async (to, subject, text, html) => {
     console.log('✅ Email envoyé via Resend, id:', data?.id);
     return { success: true, messageId: data?.id };
   }
+
   const transporter = getTransporter();
   const info = await transporter.sendMail({ from, to, subject, text, html });
   return { success: true, messageId: info.messageId };
@@ -70,13 +89,15 @@ const sendEmail = async (to, subject, text, html) => {
  */
 export const envoyerEmailConfirmation = async (options) => {
   try {
+    const hasSendGrid = !!process.env.SENDGRID_API_KEY;
     const hasResend = !!process.env.RESEND_API_KEY;
     const hasSmtp = !!(process.env.SMTP_USER && process.env.SMTP_PASSWORD);
-    if (!hasResend && !hasSmtp) {
-      console.warn('⚠️ Email non envoyé: configurez RESEND_API_KEY (recommandé sur Render) ou SMTP_USER + SMTP_PASSWORD.');
-      return { success: false, message: 'Aucun service email configuré (Resend ou SMTP)' };
+    if (!hasSendGrid && !hasResend && !hasSmtp) {
+      console.warn('⚠️ Email non envoyé: configurez SENDGRID_API_KEY (le plus simple), RESEND_API_KEY, ou SMTP.');
+      return { success: false, message: 'Aucun service email configuré' };
     }
-    console.log('📧 Envoi email confirmation via', hasResend ? 'Resend' : 'SMTP');
+    const via = hasSendGrid ? 'SendGrid' : hasResend ? 'Resend' : 'SMTP';
+    console.log('📧 Envoi email confirmation via', via);
 
     const { 
       to, 
@@ -233,10 +254,11 @@ L'équipe Snackin'
  */
 export const envoyerEmailRemerciement = async (options) => {
   try {
+    const hasSendGrid = !!process.env.SENDGRID_API_KEY;
     const hasResend = !!process.env.RESEND_API_KEY;
     const hasSmtp = !!(process.env.SMTP_USER && process.env.SMTP_PASSWORD);
-    if (!hasResend && !hasSmtp) {
-      console.warn('⚠️ Email non envoyé: configurez RESEND_API_KEY ou SMTP.');
+    if (!hasSendGrid && !hasResend && !hasSmtp) {
+      console.warn('⚠️ Email non envoyé: configurez SENDGRID_API_KEY, RESEND_API_KEY ou SMTP.');
       return { success: false, message: 'Aucun service email configuré' };
     }
 
