@@ -18,6 +18,9 @@ import paiementRoutes from './routes/paiement.routes.js';
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Derrière un proxy (Render, etc.) : faire confiance à X-Forwarded-For pour le rate-limit et l'IP réelle
+app.set('trust proxy', 1);
+
 // Connexion à la base de données
 connectDB();
 
