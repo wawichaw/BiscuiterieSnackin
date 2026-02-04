@@ -225,8 +225,8 @@ router.post('/', optionalAuth, [
       await commande.populate('user', 'name email');
     }
 
-    // Si le paiement est confirmé, envoyer l'email de confirmation immédiatement
-    if (commande.paiementConfirme) {
+    // Envoyer l'email de confirmation pour toute commande (en ligne ou sur place)
+    {
       const email = commande.user ? commande.user.email : commande.visiteurEmail;
       const nom = commande.user ? commande.user.name : commande.visiteurNom;
       try {
