@@ -19,12 +19,17 @@ const optionalAuth = async (req, res, next) => {
 
 const router = express.Router();
 
-// Initialiser Stripe avec la clé secrète
-if (!process.env.STRIPE_SECRET_KEY) {
+// Initialiser Stripe avec la clé secrète (sk_... uniquement, pas la clé publique pk_...)
+const secretKey = process.env.STRIPE_SECRET_KEY?.trim();
+if (!secretKey) {
   console.error('❌ ERREUR CRITIQUE: STRIPE_SECRET_KEY n\'est pas configurée !');
   throw new Error('STRIPE_SECRET_KEY est requise pour le fonctionnement de l\'application');
 }
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+if (secretKey.startsWith('pk_')) {
+  console.error('❌ ERREUR: STRIPE_SECRET_KEY ne doit pas être la clé publique (pk_...). Utilisez la clé secrète (sk_live_... ou sk_test_...) depuis le tableau de bord Stripe.');
+  throw new Error('STRIPE_SECRET_KEY doit être la clé secrète (sk_...), pas la clé publique (pk_...)');
+}
+const stripe = new Stripe(secretKey);
 
 // @route   POST /api/paiement/create-intent
 // @desc    Créer un PaymentIntent pour une commande
@@ -43,16 +48,14 @@ router.post('/create-intent', optionalAuth, async (req, res) => {
     // Convertir le montant en cents (Stripe utilise les cents)
     const amountInCents = Math.round(montant * 100);
 
-    // Créer le PaymentIntent
+    // Créer le PaymentIntent (carte uniquement, sans Klarna ni autres méthodes)
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amountInCents,
       currency: 'cad', // CAD pour dollars canadiens
       metadata: {
         commandeId: commandeId || 'pending',
       },
-      automatic_payment_methods: {
-        enabled: true,
-      },
+      payment_method_types: ['card'],
       // Spécifier le pays pour aider Stripe à détecter le format du code postal
       payment_method_options: {
         card: {
