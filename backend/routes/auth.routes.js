@@ -2,6 +2,7 @@ import express from 'express';
 import { body, validationResult } from 'express-validator';
 import { OAuth2Client } from 'google-auth-library';
 import User from '../models/User.model.js';
+import Commande from '../models/Commande.model.js';
 import { generateToken } from '../config/jwt.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { verifyRecaptcha } from '../middleware/recaptcha.middleware.js';
@@ -63,6 +64,16 @@ router.post('/register', [
       role: finalRole,
       isAdmin: finalIsAdmin,
     });
+
+    // Lier les commandes passées en invité avec ce même email au nouveau compte
+    const emailLower = email.trim().toLowerCase();
+    const linked = await Commande.updateMany(
+      { user: null, visiteurEmail: { $regex: new RegExp(`^${emailLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') } },
+      { $set: { user: user._id } }
+    );
+    if (linked.modifiedCount > 0) {
+      console.log(`✅ ${linked.modifiedCount} commande(s) invité liée(s) au compte ${email}`);
+    }
 
     // Générer le token
     const token = generateToken(user._id);
@@ -257,6 +268,15 @@ router.post('/google', [
         googleId,
         password: undefined, // Pas de mot de passe pour les utilisateurs Google
       });
+      // Lier les commandes passées en invité avec ce même email au nouveau compte
+      const emailLower = email.trim().toLowerCase();
+      const linked = await Commande.updateMany(
+        { user: null, visiteurEmail: { $regex: new RegExp(`^${emailLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') } },
+        { $set: { user: user._id } }
+      );
+      if (linked.modifiedCount > 0) {
+        console.log(`✅ ${linked.modifiedCount} commande(s) invité liée(s) au compte Google ${email}`);
+      }
     }
 
     // Générer le token JWT

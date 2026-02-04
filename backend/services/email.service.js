@@ -1,28 +1,55 @@
 import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 
-// Configuration du transporteur email
-// Fonctionne avec n'importe quel service SMTP (Gmail, Outlook, Yahoo, etc.)
+// Sur Render (et beaucoup d'hébergeurs), le SMTP sortant (port 587) est bloqué → timeout.
+// Si RESEND_API_KEY est défini, on utilise l'API Resend (HTTPS) qui fonctionne partout.
+const useResend = () => !!process.env.RESEND_API_KEY;
+
+const getFromEmail = () => {
+  if (useResend()) {
+    return process.env.RESEND_FROM || 'Snackin\' <onboarding@resend.dev>';
+  }
+  return `"Snackin'" <${process.env.SMTP_USER}>`;
+};
+
 const getTransporter = () => {
   const host = process.env.SMTP_HOST || 'smtp.gmail.com';
   const port = parseInt(process.env.SMTP_PORT || '587', 10);
-  const secure = port === 465; // Port 465 utilise SSL/TLS, les autres utilisent STARTTLS
-  
+  const secure = port === 465;
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASSWORD ? process.env.SMTP_PASSWORD.replace(/\s/g, '') : '';
   return nodemailer.createTransport({
-    host: host,
-    port: port,
-    secure: secure, // true pour 465, false pour les autres ports (587, etc.)
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASSWORD,
-    },
-    // Options supplémentaires pour une meilleure compatibilité
-    tls: {
-      rejectUnauthorized: false, // Accepte les certificats auto-signés (utile pour certains serveurs)
-    },
+    host,
+    port,
+    secure,
+    auth: { user, pass },
+    tls: { rejectUnauthorized: false },
   });
 };
 
-const transporter = getTransporter();
+/** Envoi générique : Resend (API) si RESEND_API_KEY est défini, sinon SMTP */
+const sendEmail = async (to, subject, text, html) => {
+  const from = getFromEmail();
+  if (useResend()) {
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    const { data, error } = await resend.emails.send({
+      from: from,
+      to: [to],
+      subject,
+      html,
+      text,
+    });
+    if (error) {
+      console.error('❌ Resend error:', error);
+      throw new Error(error.message || JSON.stringify(error));
+    }
+    console.log('✅ Email envoyé via Resend, id:', data?.id);
+    return { success: true, messageId: data?.id };
+  }
+  const transporter = getTransporter();
+  const info = await transporter.sendMail({ from, to, subject, text, html });
+  return { success: true, messageId: info.messageId };
+};
 
 /**
  * Envoie un email de confirmation de commande
@@ -43,18 +70,13 @@ const transporter = getTransporter();
  */
 export const envoyerEmailConfirmation = async (options) => {
   try {
-    // Vérifier que les variables d'environnement sont configurées
-    console.log('📧 Tentative d\'envoi d\'email...');
-    console.log('SMTP_HOST:', process.env.SMTP_HOST);
-    console.log('SMTP_USER:', process.env.SMTP_USER ? 'Configuré' : 'Non configuré');
-    console.log('SMTP_PASSWORD:', process.env.SMTP_PASSWORD ? 'Configuré' : 'Non configuré');
-    
-    if (!process.env.SMTP_USER || !process.env.SMTP_PASSWORD) {
-      console.warn('⚠️  SMTP non configuré. Email non envoyé.');
-      console.warn('SMTP_USER:', process.env.SMTP_USER);
-      console.warn('SMTP_PASSWORD:', process.env.SMTP_PASSWORD ? 'Présent' : 'Absent');
-      return { success: false, message: 'SMTP non configuré' };
+    const hasResend = !!process.env.RESEND_API_KEY;
+    const hasSmtp = !!(process.env.SMTP_USER && process.env.SMTP_PASSWORD);
+    if (!hasResend && !hasSmtp) {
+      console.warn('⚠️ Email non envoyé: configurez RESEND_API_KEY (recommandé sur Render) ou SMTP_USER + SMTP_PASSWORD.');
+      return { success: false, message: 'Aucun service email configuré (Resend ou SMTP)' };
     }
+    console.log('📧 Envoi email confirmation via', hasResend ? 'Resend' : 'SMTP');
 
     const { 
       to, 
@@ -188,29 +210,17 @@ Merci pour votre commande !
 L'équipe Snackin'
     `;
 
-    console.log('📧 Envoi de l\'email à:', to);
-    console.log('📧 Nom du client:', nomClient);
-    console.log('📧 Numéro de commande:', numeroCommande);
-    
-    const info = await transporter.sendMail({
-      from: `"Snackin'" <${process.env.SMTP_USER}>`,
-      to: to,
-      subject: `🍪 Snackin' - Votre commande #${numeroCommande} est en traitement`,
-      text: texte,
-      html: html,
-    });
-
-    console.log('✅ Email envoyé avec succès!');
-    console.log('✅ Message ID:', info.messageId);
-    console.log('✅ Destinataire:', to);
-    return { success: true, messageId: info.messageId };
+    console.log('📧 Destinataire:', to);
+    const subject = `🍪 Snackin' - Votre commande #${numeroCommande} est en traitement`;
+    const result = await sendEmail(to, subject, texte, html);
+    console.log('✅ Email confirmation envoyé à', to);
+    return result;
   } catch (error) {
-    console.error('❌ Erreur lors de l\'envoi de l\'email:');
-    console.error('❌ Type d\'erreur:', error.constructor.name);
-    console.error('❌ Message:', error.message);
-    console.error('❌ Code:', error.code);
-    console.error('❌ Stack:', error.stack);
-    return { success: false, error: error.message };
+    const errMsg = error.response || error.message || String(error);
+    console.error('❌ Erreur envoi email confirmation:', errMsg);
+    if (error.code) console.error('❌ Code:', error.code);
+    if (error.response) console.error('❌ Response:', error.response);
+    return { success: false, error: error.message || String(error) };
   }
 };
 
@@ -223,10 +233,11 @@ L'équipe Snackin'
  */
 export const envoyerEmailRemerciement = async (options) => {
   try {
-    // Vérifier que les variables d'environnement sont configurées
-    if (!process.env.SMTP_USER || !process.env.SMTP_PASSWORD) {
-      console.warn('⚠️  SMTP non configuré. Email non envoyé.');
-      return { success: false, message: 'SMTP non configuré' };
+    const hasResend = !!process.env.RESEND_API_KEY;
+    const hasSmtp = !!(process.env.SMTP_USER && process.env.SMTP_PASSWORD);
+    if (!hasResend && !hasSmtp) {
+      console.warn('⚠️ Email non envoyé: configurez RESEND_API_KEY ou SMTP.');
+      return { success: false, message: 'Aucun service email configuré' };
     }
 
     const { to, nomClient, numeroCommande } = options;
@@ -299,22 +310,13 @@ Merci encore pour votre confiance !
 L'équipe Snackin'
     `;
 
-    console.log('📧 Envoi de l\'email de remerciement à:', to);
-    
-    const info = await transporter.sendMail({
-      from: `"Snackin'" <${process.env.SMTP_USER}>`,
-      to: to,
-      subject: `🍪 Snackin' - Merci pour votre commande #${numeroCommande} !`,
-      text: texte,
-      html: html,
-    });
-
-    console.log('✅ Email de remerciement envoyé avec succès!');
-    console.log('✅ Message ID:', info.messageId);
-    return { success: true, messageId: info.messageId };
+    console.log('📧 Envoi email remerciement à:', to);
+    const subject = `🍪 Snackin' - Merci pour votre commande #${numeroCommande} !`;
+    const result = await sendEmail(to, subject, texte, html);
+    console.log('✅ Email remerciement envoyé à', to);
+    return result;
   } catch (error) {
-    console.error('❌ Erreur lors de l\'envoi de l\'email de remerciement:');
-    console.error('❌ Message:', error.message);
+    console.error('❌ Erreur envoi email remerciement:', error.message);
     return { success: false, error: error.message };
   }
 };

@@ -38,8 +38,14 @@ router.get('/', authenticate, async (req, res) => {
       // Admin voit toutes les commandes
       commandes = await Commande.find().populate('user', 'name email').populate('boites.saveurs.biscuit');
     } else {
-      // Utilisateur voit seulement ses commandes
-      commandes = await Commande.find({ user: req.userId }).populate('boites.saveurs.biscuit');
+      // Utilisateur voit ses commandes + les commandes invité passées avec le même email (avant création de compte)
+      const userEmail = (user && user.email) ? user.email.trim().toLowerCase() : '';
+      commandes = await Commande.find({
+        $or: [
+          { user: req.userId },
+          { user: null, visiteurEmail: { $regex: new RegExp(`^${userEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') } },
+        ],
+      }).populate('boites.saveurs.biscuit');
     }
 
     res.json({
@@ -221,14 +227,11 @@ router.post('/', optionalAuth, [
 
     // Si le paiement est confirmé, envoyer l'email de confirmation immédiatement
     if (commande.paiementConfirme) {
+      const email = commande.user ? commande.user.email : commande.visiteurEmail;
+      const nom = commande.user ? commande.user.name : commande.visiteurNom;
       try {
         const { envoyerEmailConfirmation } = await import('../services/email.service.js');
-        
-        // Déterminer l'email et le nom selon le type de commande
-        const email = commande.user ? commande.user.email : commande.visiteurEmail;
-        const nom = commande.user ? commande.user.name : commande.visiteurNom;
-        
-        await envoyerEmailConfirmation({
+        const result = await envoyerEmailConfirmation({
           to: email,
           nomClient: nom,
           numeroCommande: commande._id.toString().slice(-6),
@@ -243,9 +246,11 @@ router.post('/', optionalAuth, [
           heureLivraison: commande.heureLivraison,
           boites: commande.boites,
         });
+        if (!result.success) {
+          console.error('❌ Email confirmation non envoyé à', email, ':', result.message || result.error);
+        }
       } catch (emailError) {
-        console.error('Erreur lors de l\'envoi de l\'email:', emailError);
-        // Ne pas bloquer la création de la commande si l'email échoue
+        console.error('❌ Erreur envoi email confirmation à', email, ':', emailError.message || emailError);
       }
     }
 
