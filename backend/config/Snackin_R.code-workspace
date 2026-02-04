@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"name": "Snackin_R",
+			"path": "../.."
+		},
+		{
+			"name": "backend",
+			"path": "../../../Snackin/backend"
+		}
+	],
+	"settings": {}
+}

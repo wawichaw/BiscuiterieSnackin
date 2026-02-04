@@ -1,0 +1,94 @@
+.mes-commandes-page {
+  max-width: 1100px;
+  margin: 40px auto;
+  padding: 0 20px;
+}
+
+.mes-commandes-page h1 {
+  font-size: 36px;
+  color: var(--cherry);
+  margin-bottom: 30px;
+}
+
+.commandes-list {
+  display: grid;
+  gap: 20px;
+}
+
+.commande-card {
+  background: white;
+  padding: 24px;
+  border-radius: 16px;
+  border: 2px solid rgba(160, 22, 43, 0.1);
+}
+
+.commande-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.statut {
+  padding: 6px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.statut-en_attente {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.statut-en_traitement {
+  background: #d1ecf1;
+  color: #0c5460;
+}
+
+.statut-completee {
+  background: #d4edda;
+  color: #155724;
+}
+
+.commande-total {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--cherry);
+  margin: 8px 0;
+}
+
+.commande-date {
+  color: #666;
+  font-size: 14px;
+}
+
+.commande-details {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(160, 22, 43, 0.1);
+}.detail-item {
+  margin: 8px 0;
+  font-size: 14px;
+  color: #333;
+}
+
+.detail-item strong {
+  color: var(--cherry);
+  margin-right: 8px;
+}
+
+.detail-item.pickup-info {
+  background: rgba(160, 22, 43, 0.05);
+  padding: 12px;
+  border-radius: 8px;
+  margin: 12px 0;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--cherry);
+}
+
+.detail-item.pickup-info strong {
+  font-size: 16px;
+}

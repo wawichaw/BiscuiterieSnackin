@@ -1,0 +1,273 @@
+.admin-biscuits-page {
+  max-width: 1200px;
+  margin: 40px auto;
+  padding: 0 20px;
+}
+
+.admin-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.admin-biscuits-page h1 {
+  font-size: 36px;
+  color: var(--cherry);
+  margin: 0;
+}
+
+.btn-primary {
+  background: var(--cherry);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+  background: #a0162b;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(160, 22, 43, 0.3);
+}
+
+.alert {
+  padding: 16px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+}
+
+.alert-error {
+  background: #fee;
+  color: #c33;
+  border: 1px solid #fcc;
+}
+
+.alert-success {
+  background: #efe;
+  color: #3c3;
+  border: 1px solid #cfc;
+}
+
+.biscuit-form {
+  background: white;
+  padding: 30px;
+  border-radius: 16px;
+  border: 2px solid rgba(160, 22, 43, 0.1);
+  margin-bottom: 30px;
+}
+
+.biscuit-form h2 {
+  color: var(--cherry);
+  margin-bottom: 20px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #333;
+}
+
+.form-group input,
+.form-group textarea {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid rgba(160, 22, 43, 0.2);
+  border-radius: 8px;
+  font-size: 16px;
+  transition: border-color 0.3s ease;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: var(--cherry);
+}
+
+.form-group input[type="checkbox"] {
+  width: auto;
+  margin-right: 8px;
+}
+
+.file-input {
+  padding: 8px;
+  border: 2px dashed rgba(160, 22, 43, 0.3);
+  border-radius: 8px;
+  cursor: pointer;
+  background: #fafafa;
+  transition: all 0.3s ease;
+}
+
+.file-input:hover {
+  border-color: var(--cherry);
+  background: #fff5f7;
+}
+
+.image-preview {
+  margin-top: 16px;
+  text-align: center;
+}
+
+.image-preview img {
+  max-width: 200px;
+  max-height: 200px;
+  border-radius: 12px;
+  border: 2px solid rgba(160, 22, 43, 0.2);
+  object-fit: cover;
+}
+
+.btn-remove-image {
+  margin-top: 10px;
+  padding: 8px 16px;
+  background: #fee;
+  color: #c33;
+  border: 1px solid #fcc;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+.btn-remove-image:hover {
+  background: #fcc;
+}
+
+.form-help {
+  display: block;
+  margin-top: 8px;
+  margin-bottom: 8px;
+  color: #666;
+  font-size: 14px;
+}
+
+.image-url-input {
+  margin-top: 8px;
+}
+
+.biscuits-list {
+  display: grid;
+  gap: 20px;
+}
+
+.biscuit-item {
+  background: white;
+  padding: 24px;
+  border-radius: 16px;
+  border: 2px solid rgba(160, 22, 43, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+.biscuit-info {
+  flex: 1;
+}
+
+.biscuit-info h3 {
+  color: var(--cherry);
+  margin-bottom: 8px;
+  font-size: 24px;
+}
+
+.biscuit-description {
+  color: #666;
+  margin-bottom: 12px;
+}
+
+.biscuit-price {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--cherry);
+  margin-bottom: 8px;
+}
+
+.biscuit-saveur,
+.biscuit-stock {
+  color: #666;
+  margin-bottom: 4px;
+  font-size: 14px;
+}
+
+.biscuit-status {
+  margin-top: 8px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.biscuit-status.available {
+  color: #3c3;
+}
+
+.biscuit-status.unavailable {
+  color: #c33;
+}
+
+.biscuit-actions {
+  display: flex;
+  gap: 10px;
+  flex-direction: column;
+}
+
+.btn {
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: 2px solid var(--cherry);
+  background: white;
+  color: var(--cherry);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn:hover {
+  background: var(--cherry);
+  color: white;
+}
+
+.btn-danger {
+  border-color: #c33;
+  color: #c33;
+}
+
+.btn-danger:hover {
+  background: #c33;
+  color: white;
+}
+
+@media (max-width: 768px) {
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .biscuit-item {
+    flex-direction: column;
+  }
+
+  .biscuit-actions {
+    flex-direction: row;
+    width: 100%;
+  }
+
+  .biscuit-actions .btn {
+    flex: 1;
+  }
+}
+

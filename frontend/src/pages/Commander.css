@@ -1,0 +1,684 @@
+.commander-page {
+  max-width: 1000px;
+  margin: 40px auto;
+  padding: 0 20px;
+}
+
+.commander-page h1 {
+  font-size: 36px;
+  color: var(--cherry);
+  margin-bottom: 30px;
+  text-align: center;
+}
+
+/* Indicateur de progression */
+.steps-indicator {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  margin-bottom: 40px;
+  padding: 20px;
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+}
+
+.step::after {
+  content: '';
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  width: 100px;
+  height: 2px;
+  background: #ddd;
+  z-index: -1;
+}
+
+.step:last-child::after {
+  display: none;
+}
+
+.step-number {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #ddd;
+  color: #999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  transition: all 0.3s ease;
+}
+
+.step.active .step-number {
+  background: var(--cherry);
+  color: white;
+}
+
+.step-label {
+  font-size: 14px;
+  color: #666;
+  font-weight: 600;
+}
+
+.step.active .step-label {
+  color: var(--cherry);
+}
+
+.commander-step {
+  background: white;
+  padding: 30px;
+  border-radius: 20px;
+  border: 2px solid rgba(160, 22, 43, 0.1);
+  margin-bottom: 30px;
+}
+
+.commander-step h2 {
+  color: var(--cherry);
+  margin-bottom: 10px;
+}
+
+.step-description {
+  color: #666;
+  margin-bottom: 30px;
+}
+
+.alert {
+  padding: 16px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+}
+
+.alert-error {
+  background: #fee;
+  color: #c33;
+  border: 1px solid #fcc;
+}
+
+/* Boîtes */
+.boite-card {
+  background: #fafafa;
+  padding: 24px;
+  border-radius: 16px;
+  border: 2px solid rgba(160, 22, 43, 0.2);
+  margin-bottom: 20px;
+}
+
+.boite-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.boite-header h3 {
+  color: var(--cherry);
+  margin: 0;
+}
+
+.btn-remove {
+  background: #fee;
+  color: #c33;
+  border: 1px solid #fcc;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+.btn-remove:hover {
+  background: #fcc;
+}
+
+.boite-taille {
+  margin-bottom: 20px;
+}
+
+.boite-taille label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 10px;
+  color: #333;
+}
+
+.taille-options {
+  display: flex;
+  gap: 10px;
+}
+
+.taille-btn {
+  padding: 12px 24px;
+  border: 2px solid rgba(160, 22, 43, 0.3);
+  background: white;
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.taille-btn:hover {
+  border-color: var(--cherry);
+  background: #fff5f7;
+}
+
+.taille-btn.active {
+  background: var(--cherry);
+  color: white;
+  border-color: var(--cherry);
+}
+
+.boite-saveurs {
+  margin-top: 20px;
+}
+
+.boite-saveurs label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 15px;
+  color: #333;
+}
+
+.saveurs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 12px;
+}
+
+.saveur-item {
+  background: white;
+  padding: 16px;
+  border-radius: 12px;
+  border: 2px solid rgba(160, 22, 43, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.saveur-info {
+  flex: 1;
+}
+
+.saveur-info strong {
+  display: block;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.saveur-tag {
+  font-size: 12px;
+  color: #666;
+  background: #f0f0f0;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.saveur-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-quantity {
+  width: 32px;
+  height: 32px;
+  border: 2px solid var(--cherry);
+  background: white;
+  color: var(--cherry);
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 18px;
+  transition: all 0.3s ease;
+}
+
+.btn-quantity:hover:not(:disabled) {
+  background: var(--cherry);
+  color: white;
+}
+
+.btn-quantity:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.quantite-badge {
+  min-width: 24px;
+  text-align: center;
+  font-weight: 700;
+  color: var(--cherry);
+}
+
+.boite-complete {
+  margin-top: 16px;
+  padding: 12px;
+  background: #efe;
+  color: #3c3;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: 600;
+}
+
+.btn {
+  padding: 12px 24px;
+  border-radius: 12px;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 16px;
+}
+
+.btn-primary {
+  background: var(--cherry);
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #a0162b;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(160, 22, 43, 0.3);
+}
+
+.btn-secondary {
+  background: white;
+  color: var(--cherry);
+  border: 2px solid var(--cherry);
+}
+
+.btn-secondary:hover {
+  background: #fff5f7;
+}
+
+.step-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 2px solid #eee;
+}
+
+.total-preview {
+  font-size: 24px;
+  color: var(--cherry);
+  font-weight: 700;
+}
+
+/* Formulaire ramassage */
+.form-group {
+  margin-bottom: 24px;
+}
+
+.form-group label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #333;
+}
+
+.form-select,
+.form-input {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid rgba(160, 22, 43, 0.2);
+  border-radius: 12px;
+  font-size: 16px;
+  transition: border-color 0.3s ease;
+}
+
+.form-select:focus,
+.form-input:focus {
+  outline: none;
+  border-color: var(--cherry);
+}
+
+/* Options de réception */
+.reception-options {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 30px;
+}
+
+.reception-option {
+  display: block;
+  cursor: pointer;
+}
+
+.reception-option input[type="radio"] {
+  display: none;
+}
+
+.reception-card {
+  padding: 20px;
+  border: 2px solid rgba(160, 22, 43, 0.2);
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.reception-option input[type="radio"]:checked + .reception-card {
+  border-color: var(--cherry);
+  background: #fff5f7;
+}
+
+.reception-card strong {
+  display: block;
+  color: var(--cherry);
+  margin-bottom: 8px;
+  font-size: 18px;
+}
+
+.reception-card p {
+  color: #666;
+  margin: 0;
+}
+
+.frais-livraison-note {
+  display: block;
+  margin-top: 8px;
+  color: var(--cherry);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.livraison-info {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 12px;
+  font-style: italic;
+  background: #fff5f7;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border-left: 3px solid var(--cherry);
+}
+
+.livraison-heure-highlight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #fff5f7 0%, #ffe9ef 100%);
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 2px solid var(--cherry);
+  margin-bottom: 12px;
+  font-weight: 600;
+  color: var(--cherry);
+}
+
+.livraison-heure-icon {
+  font-size: 20px;
+}
+
+.livraison-heure-text {
+  font-size: 16px;
+}
+
+/* Options de paiement */
+.paiement-options {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 30px;
+}
+
+.paiement-option {
+  display: block;
+  cursor: pointer;
+}
+
+.paiement-option input[type="radio"] {
+  display: none;
+}
+
+.paiement-card {
+  padding: 20px;
+  border: 2px solid rgba(160, 22, 43, 0.2);
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.paiement-option input[type="radio"]:checked + .paiement-card {
+  border-color: var(--cherry);
+  background: #fff5f7;
+}
+
+.paiement-card strong {
+  display: block;
+  color: var(--cherry);
+  margin-bottom: 8px;
+  font-size: 18px;
+}
+
+.paiement-card p {
+  color: #666;
+  margin: 0;
+}
+
+.stripe-payment-section {
+  margin-top: 30px;
+  padding: 24px;
+  background: #fafafa;
+  border-radius: 12px;
+  border: 2px solid rgba(160, 22, 43, 0.1);
+}
+
+.stripe-payment-section h3 {
+  color: var(--cherry);
+  margin-bottom: 20px;
+  font-size: 20px;
+}
+
+.paiement-info {
+  padding: 16px;
+  background: #fff5f7;
+  border-radius: 8px;
+  border-left: 4px solid var(--cherry);
+  color: #666;
+}
+
+.paiement-info p {
+  margin: 0;
+  font-size: 14px;
+}
+
+/* Résumé de commande */
+.commande-resume {
+  background: #fafafa;
+  padding: 24px;
+  border-radius: 12px;
+  margin-bottom: 30px;
+}
+
+.commande-resume h3 {
+  color: var(--cherry);
+  margin-bottom: 16px;
+}
+
+.resume-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.resume-item:last-child {
+  border-bottom: none;
+}
+
+.resume-total {
+  font-size: 20px;
+  margin-top: 8px;
+  padding-top: 16px;
+  border-top: 2px solid var(--cherry);
+}
+
+.resume-total strong {
+  color: var(--cherry);
+  font-size: 24px;
+}
+
+.no-hours,
+.no-dates {
+  padding: 16px;
+  background: #fff5f7;
+  border: 2px dashed rgba(160, 22, 43, 0.3);
+  border-radius: 12px;
+  text-align: center;
+  color: #666;
+}
+
+.dates-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.date-btn {
+  padding: 16px;
+  border: 2px solid rgba(160, 22, 43, 0.3);
+  background: white;
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  color: #333;
+  transition: all 0.3s ease;
+  text-align: center;
+  text-transform: capitalize;
+}
+
+.date-btn:hover {
+  border-color: var(--cherry);
+  background: #fff5f7;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(160, 22, 43, 0.15);
+}
+
+.date-btn.active {
+  background: var(--cherry);
+  color: white;
+  border-color: var(--cherry);
+  box-shadow: 0 4px 12px rgba(160, 22, 43, 0.3);
+}
+
+@media (max-width: 768px) {
+  .steps-indicator {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .step::after {
+    display: none;
+  }
+
+  .saveurs-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .step-actions {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .step-actions .btn {
+    width: 100%;
+  }
+}
+
+/* Informations visiteur */
+.visiteur-infos {
+  background: #fafafa;
+  padding: 24px;
+  border-radius: 12px;
+  margin-bottom: 30px;
+}
+
+.visiteur-infos h3 {
+  color: var(--cherry);
+  margin-bottom: 20px;
+}
+
+.visiteur-infos .form-group {
+  margin-bottom: 20px;
+}
+
+.visiteur-infos .form-group small {
+  display: block;
+  margin-top: 4px;
+  color: #666;
+  font-size: 14px;
+}
+
+/* Étape de confirmation */
+.confirmation-step {
+  text-align: center;
+}
+
+.confirmation-success {
+  background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+  padding: 30px;
+  border-radius: 16px;
+  margin-bottom: 30px;
+  border: 2px solid #28a745;
+}
+
+.confirmation-success h2 {
+  color: #155724;
+  margin-bottom: 16px;
+  font-size: 32px;
+}
+
+.commande-numero {
+  font-size: 20px;
+  color: #155724;
+  margin: 16px 0;
+}
+
+.commande-numero strong {
+  font-size: 24px;
+  color: var(--cherry);
+  background: white;
+  padding: 4px 12px;
+  border-radius: 8px;
+  display: inline-block;
+}
+
+.inscription-proposition {
+  background: linear-gradient(135deg, #fff5f7 0%, #ffe9ef 100%);
+  padding: 30px;
+  border-radius: 16px;
+  margin-top: 30px;
+  border: 2px solid rgba(160, 22, 43, 0.2);
+}
+
+.inscription-proposition h3 {
+  color: var(--cherry);
+  margin-bottom: 12px;
+}
+
+.inscription-proposition p {
+  color: #666;
+  margin-bottom: 20px;
+  line-height: 1.6;
+}
+
+.inscription-actions {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}.inscription-actions .btn {
+  min-width: 200px;
+}.inscription-note {
+  font-size: 14px;
+  color: #999;
+  margin-top: 16px;
+  font-style: italic;
+}

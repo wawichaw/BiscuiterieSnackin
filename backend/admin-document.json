@@ -1,0 +1,8 @@
+{
+  "name": "Admin Snackin",
+  "email": "admin@snackin.com",
+  "password": "$2a$10$VOTRE_HASH_BCRYPT_ICI",
+  "role": "admin",
+  "isAdmin": true
+}
+

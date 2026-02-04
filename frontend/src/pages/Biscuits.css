@@ -1,0 +1,90 @@
+.biscuits-page {
+  max-width: 1100px;
+  margin: 40px auto;
+  padding: 0 20px;
+}
+
+.biscuits-header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.biscuits-header h1 {
+  font-size: clamp(32px, 5vw, 48px);
+  color: var(--cherry);
+  margin: 0 0 8px 0;
+}
+
+.biscuits-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 24px;
+}
+
+.biscuit-card {
+  background: linear-gradient(180deg, #fff 0%, #fff8f9 100%);
+  border-radius: 24px;
+  padding: 24px;
+  box-shadow: 0 12px 32px rgba(160, 22, 43, 0.1);
+  border: 2px solid rgba(160, 22, 43, 0.1);
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.biscuit-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 20px 48px rgba(160, 22, 43, 0.18);
+  border-color: var(--cherry);
+}
+
+.biscuit-image {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 16px;
+  overflow: hidden;
+  background: var(--cream);
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.biscuit-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.biscuit-placeholder {
+  font-size: 64px;
+}
+
+.biscuit-info h3 {
+  margin: 0 0 8px 0;
+  color: var(--cherry);
+  font-size: 22px;
+}
+
+.biscuit-info p {
+  margin: 0 0 12px 0;
+  color: #666;
+  font-size: 14px;
+}
+
+.biscuit-price {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--cherry);
+  margin-top: auto;
+}
+
+.loading {
+  text-align: center;
+  padding: 40px;
+  font-size: 18px;
+  color: var(--cherry);
+}
+

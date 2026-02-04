@@ -1,0 +1,82 @@
+.biscuit-detail-page {
+  max-width: 1100px;
+  margin: 40px auto;
+  padding: 0 20px;
+}
+
+.biscuit-detail {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+  background: linear-gradient(180deg, #fff 0%, #fff8f9 100%);
+  border-radius: 24px;
+  padding: 40px;
+  box-shadow: 0 16px 48px rgba(160, 22, 43, 0.15);
+  border: 2px solid rgba(160, 22, 43, 0.1);
+}
+
+.biscuit-detail-image {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 20px;
+  overflow: hidden;
+  background: var(--cream);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.biscuit-detail-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.biscuit-detail-info h1 {
+  font-size: 36px;
+  color: var(--cherry);
+  margin: 0 0 16px 0;
+}
+
+.biscuit-description {
+  font-size: 18px;
+  line-height: 1.6;
+  margin: 0 0 20px 0;
+  color: #333;
+}
+
+.biscuit-saveur {
+  margin: 20px 0;
+  padding: 12px;
+  background: var(--cream);
+  border-radius: 12px;
+  font-size: 16px;
+}
+
+.biscuit-price-large {
+  font-size: 48px;
+  font-weight: 800;
+  color: var(--cherry);
+  margin: 20px 0;
+}
+
+.biscuit-availability {
+  margin-top: 20px;
+}
+
+.available {
+  color: green;
+  font-weight: 600;
+}
+
+.unavailable {
+  color: red;
+  font-weight: 600;
+}
+
+@media (max-width: 768px) {
+  .biscuit-detail {
+    grid-template-columns: 1fr;
+  }
+}
+

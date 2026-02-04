@@ -1,0 +1,12 @@
+.about-page {
+  max-width: 1100px;
+  margin: 40px auto;
+  padding: 0 20px;
+}
+
+.about-page h1 {
+  font-size: 36px;
+  color: var(--cherry);
+  margin-bottom: 20px;
+}
+
