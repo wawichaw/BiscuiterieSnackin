@@ -133,11 +133,12 @@ const CheckoutForm = ({ montant, commandeId, onSuccess, onError, clientSecret })
         <PaymentElement
           options={{
             layout: 'tabs',
+            paymentMethodOrder: ['card'], 
             fields: {
               billingDetails: {
                 address: {
-                  country: 'auto', // Détecter automatiquement le pays
-                  postalCode: 'auto', // Format automatique selon le pays (Canada = H1A 1A1)
+                  country: 'auto',
+                  postalCode: 'auto',
                 },
               },
             },
