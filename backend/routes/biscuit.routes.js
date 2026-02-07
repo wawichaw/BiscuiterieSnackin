@@ -30,7 +30,10 @@ router.get('/', async (req, res) => {
       // Si erreur d'authentification, continuer avec la requête publique
     }
 
-    const biscuits = await Biscuit.find(query).sort({ createdAt: -1 });
+    const biscuits = await Biscuit.find(query)
+      .select('nom description prix image saveur disponible stock createdAt')
+      .sort({ createdAt: -1 })
+      .lean();
     res.json({
       success: true,
       count: biscuits.length,

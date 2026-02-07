@@ -69,14 +69,30 @@ const Commander = () => {
       prochainJeudi.setDate(aujourdhui.getDate() + (7 - jourActuel + 4));
     }
     
-    // Générer 8 jeudis consécutifs
+    // Générer 8 jeudis consécutifs (utiliser la date locale pour éviter mercredi au lieu de jeudi en UTC)
     for (let i = 0; i < 8; i++) {
       const jeudi = new Date(prochainJeudi);
       jeudi.setDate(prochainJeudi.getDate() + (i * 7));
-      dates.push(jeudi.toISOString().split('T')[0]);
+      const y = jeudi.getFullYear();
+      const m = String(jeudi.getMonth() + 1).padStart(2, '0');
+      const d = String(jeudi.getDate()).padStart(2, '0');
+      dates.push(`${y}-${m}-${d}`);
     }
     
     setDatesLivraisonDisponibles(dates);
+  };
+
+  // Parser "YYYY-MM-DD" en date locale (évite d'afficher mercredi au lieu de jeudi)
+  const parseLocalDate = (dateStr) => {
+    if (!dateStr || typeof dateStr !== 'string') return null;
+    const parts = dateStr.split('T')[0].split('-').map(Number);
+    if (parts.length !== 3) return new Date(dateStr);
+    return new Date(parts[0], parts[1] - 1, parts[2]);
+  };
+
+  const formatLocalDateStr = (dateStr, options = { weekday: 'long', day: 'numeric', month: 'long' }) => {
+    const d = parseLocalDate(dateStr);
+    return d ? d.toLocaleDateString('fr-FR', options) : '';
   };
 
   // Charger les dates disponibles quand le lieu change (pour ramassage)
@@ -142,12 +158,23 @@ const Commander = () => {
   const fetchBiscuits = async () => {
     try {
       const response = await api.get('/biscuits');
-      setBiscuits(response.data.data.biscuits.filter(b => b.disponible));
+      const list = response.data.data.biscuits || [];
+      setBiscuits(list.filter(b => b.disponible !== false));
     } catch (error) {
-      console.error('Erreur:', error);
+      console.error('Erreur chargement biscuits:', error);
+      setBiscuits([]);
     } finally {
       setLoading(false);
     }
+  };
+
+  // URL d'image : support data: et http, ou chemin relatif vers l'API
+  const getBiscuitImageUrl = (biscuit) => {
+    if (!biscuit?.image) return null;
+    const img = biscuit.image;
+    if (img.startsWith('data:') || img.startsWith('http://') || img.startsWith('https://')) return img;
+    const base = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/api\/?$/, '') || window.location.origin;
+    return (base + (img.startsWith('/') ? '' : '/') + img);
   };
 
   // Prix des boîtes
@@ -424,8 +451,15 @@ const Commander = () => {
       }
     } catch (error) {
       console.error('Erreur lors de la commande:', error);
-      const errorMessage = error.response?.data?.message || error.response?.data?.errors?.[0]?.msg || 'Erreur lors de la création de la commande';
-      console.error('Détails de l\'erreur:', error.response?.data);
+      let errorMessage = error.response?.data?.message || error.response?.data?.errors?.[0]?.msg;
+      if (!errorMessage) {
+        // Erreur réseau = backend inaccessible (non démarré ou connexion refusée)
+        if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
+          errorMessage = 'Serveur inaccessible. Démarrez le backend (dans le dossier backend : npm run dev) puis réessayez.';
+        } else {
+          errorMessage = 'Erreur lors de la création de la commande. Réessayez.';
+        }
+      }
       setError(errorMessage);
       // Si c'est une erreur de validation, réactiver le formulaire de paiement
       if (error.response?.status === 400 && methodePaiement === 'en_ligne') {
@@ -470,10 +504,24 @@ const Commander = () => {
       {currentStep === 1 && (
         <div className="commander-step">
           <h2>Choisissez vos boîtes</h2>
-          <p className="step-description">
+          <p className="step-description desktop-only">
             Les biscuits sont vendus en boîtes de 4, 6 ou 12. 
             Choisissez la taille de votre boîte, puis sélectionnez les saveurs.
           </p>
+          <p className="step-description-mobile mobile-only">Boîtes 4, 6 ou 12 — choisissez vos saveurs.</p>
+
+          {boites.length === 0 && (
+            <div className="commander-first-box-cta">
+              <p className="desktop-only">Cliquez ci-dessous pour ajouter votre première boîte.</p>
+              <button
+                type="button"
+                onClick={ajouterBoite}
+                className="btn btn-primary btn-add-first"
+              >
+                Ajouter une boîte
+              </button>
+            </div>
+          )}
 
           {boites.map((boite) => {
             const totalSaveurs = getTotalSaveursBoite(boite);
@@ -510,11 +558,28 @@ const Commander = () => {
 
                 <div className="boite-saveurs">
                   <label>Choisissez vos saveurs ({reste} restant{reste > 1 ? 's' : ''}):</label>
+                  {biscuits.length === 0 ? (
+                    <p className="no-biscuits-msg">
+                      <span className="desktop-only">Aucun biscuit disponible. Vérifiez que le serveur est démarré et que des biscuits sont en vente.</span>
+                      <span className="mobile-only">Aucun biscuit disponible pour le moment.</span>
+                    </p>
+                  ) : (
                   <div className="saveurs-grid">
                     {biscuits.map((biscuit) => {
                       const quantite = getQuantiteSaveur(boite.id, biscuit._id);
+                      const imageUrl = getBiscuitImageUrl(biscuit);
                       return (
                         <div key={biscuit._id} className="saveur-item">
+                          <div className="saveur-item-image">
+                            {imageUrl ? (
+                              <img
+                                src={imageUrl}
+                                alt={biscuit.nom}
+                                onError={(e) => { e.target.style.display = 'none'; e.target.nextElementSibling?.classList.add('show'); }}
+                              />
+                            ) : null}
+                            <span className={`saveur-item-placeholder ${!imageUrl ? 'show' : ''}`}>🍪</span>
+                          </div>
                           <div className="saveur-info">
                             <strong>{biscuit.nom}</strong>
                             {biscuit.saveur && <span className="saveur-tag">{biscuit.saveur}</span>}
@@ -543,6 +608,7 @@ const Commander = () => {
                       );
                     })}
                   </div>
+                  )}
                 </div>
 
                 {reste === 0 && (
@@ -600,7 +666,8 @@ const Commander = () => {
               />
               <div className="reception-card">
                 <strong>📍 Ramassage</strong>
-                <p>Récupérez votre commande à un point de ramassage</p>
+                <p className="desktop-only">Récupérez votre commande à un point de ramassage</p>
+                <p className="mobile-only">Point de ramassage</p>
               </div>
             </label>
 
@@ -620,7 +687,8 @@ const Commander = () => {
               />
               <div className="reception-card">
                 <strong>🚚 Livraison</strong>
-                <p>Livraison à domicile (5$ les jeudis après 18h)</p>
+                <p className="desktop-only">Livraison à domicile (5$ les jeudis après 18h)</p>
+                <p className="mobile-only">Domicile — 5$ (jeudis 18h)</p>
               </div>
             </label>
           </div>
@@ -663,11 +731,7 @@ const Commander = () => {
                             className={`date-btn ${dateRamassage === date ? 'active' : ''}`}
                             onClick={() => setDateRamassage(date)}
                           >
-                            {new Date(date).toLocaleDateString('fr-FR', { 
-                              weekday: 'long', 
-                              day: 'numeric', 
-                              month: 'long' 
-                            })}
+                            {formatLocalDateStr(date)}
                           </button>
                         ))}
                       </div>
@@ -773,33 +837,20 @@ const Commander = () => {
                         className={`date-btn ${dateLivraison === date ? 'active' : ''}`}
                         onClick={() => {
                           setDateLivraison(date);
-                          setHeureLivraison(''); // Réinitialiser l'heure quand on change de date
+                          setHeureLivraison('18:00'); // Livraison après 18h
                         }}
                       >
-                        {new Date(date).toLocaleDateString('fr-FR', { 
-                          weekday: 'long', 
-                          day: 'numeric', 
-                          month: 'long' 
-                        })}
+                        {formatLocalDateStr(date)}
                       </button>
                     ))}
                   </div>
                 )}
               </div>
 
-              {dateLivraison && (
-                <div className="form-group">
-                  <label>Heure de livraison souhaitée *</label>
-                  <div className="livraison-heure-highlight">
-                    <span className="livraison-heure-icon">🕐</span>
-                    <span className="livraison-heure-text">Livraison après 18h</span>
-                  </div>
-                  {fraisLivraison > 0 && (
-                    <small className="frais-livraison-note">
-                      ⚠️ Frais de livraison de {fraisLivraison.toFixed(2)} $ appliqués (jeudi après 18h)
-                    </small>
-                  )}
-                </div>
+              {dateLivraison && fraisLivraison > 0 && (
+                <p className="frais-livraison-note">
+                  ⚠️ Frais de livraison de {fraisLivraison.toFixed(2)} $ appliqués (jeudi après 18h)
+                </p>
               )}
             </>
           )}
@@ -853,7 +904,7 @@ const Commander = () => {
                   className="form-input"
                   placeholder="votre@email.com"
                 />
-                <small>Nous vous enverrons la confirmation de commande par email</small>
+                <small className="desktop-only">Nous vous enverrons la confirmation de commande par email</small>
               </div>
               <div className="form-group">
                 <label>Téléphone (optionnel)</label>
@@ -976,7 +1027,7 @@ const Commander = () => {
                 </div>
                 <div className="resume-item">
                   <span>Date et heure:</span>
-                  <strong>{new Date(dateRamassage).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })} à {heureRamassage}</strong>
+                  <strong>{formatLocalDateStr(dateRamassage)} à {heureRamassage}</strong>
                 </div>
               </>
             ) : (
@@ -991,7 +1042,7 @@ const Commander = () => {
                 </div>
                 <div className="resume-item">
                   <span>Date et heure:</span>
-                  <strong>{new Date(dateLivraison).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })} à {heureLivraison}</strong>
+                  <strong>{formatLocalDateStr(dateLivraison)} à {heureLivraison}</strong>
                 </div>
                 {fraisLivraison > 0 && (
                   <div className="resume-item">

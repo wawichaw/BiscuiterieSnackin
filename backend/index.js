@@ -27,12 +27,26 @@ connectDB();
 // Middleware de sécurité
 app.use(helmet());
 
-// CORS - Autoriser le frontend (origine exacte pour éviter erreur "not equal to the supplied origin")
+// CORS - Autoriser le frontend
 const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
+const allowedOrigins = [
+  frontendUrl,
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:5173', // Vite par défaut
+];
+if (process.env.NODE_ENV === 'development') {
+  // En dev, accepter tout localhost (n'importe quel port)
+  allowedOrigins.push(/^http:\/\/localhost(:\d+)?$/);
+}
 app.use(cors({
   origin: (origin, callback) => {
-    const ok = !origin || origin.replace(/\/$/, '') === frontendUrl || origin.replace(/\/$/, '') === 'http://localhost:3000';
-    callback(null, ok ? (origin || frontendUrl) : false);
+    if (!origin) return callback(null, true);
+    const o = origin.replace(/\/$/, '');
+    const ok = allowedOrigins.some(allowed =>
+      typeof allowed === 'string' ? o === allowed : allowed.test(origin)
+    );
+    callback(null, ok ? origin : false);
   },
   credentials: true,
 }));

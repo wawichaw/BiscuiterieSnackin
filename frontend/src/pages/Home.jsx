@@ -27,7 +27,8 @@ const Home = () => {
               Croquants dehors, fondants dedans.<br />
               Les biscuits qui rendent tout le monde heureux.
             </h1>
-            <p>Gérez vos biscuits, découvrez les saveurs et passez vos commandes en 2 clics.</p>
+            <p className="hero-subtitle desktop-only">Gérez vos biscuits, découvrez les saveurs et passez vos commandes en 2 clics.</p>
+            <p className="hero-subtitle mobile-only">Commandez en 2 clics.</p>
 
             <div className="cta-row">
               {!isAdmin && (
@@ -62,11 +63,12 @@ const Home = () => {
         <div className="grid">
           {!isAdmin && (
             <div className="card">
-              <h3>Commander en quelques clics</h3>
-              <p>
+              <h3>Commander</h3>
+              <p className="desktop-only">
                 Choisis la taille (4, 6, 12) et compose ta boîte.<br />
                 Tu récupères au point de ramassage.
               </p>
+              <p className="mobile-only">Boîtes 4, 6 ou 12 — récupère au point de ramassage.</p>
               <p>
                 <Link to="/commander" className="btn primary">
                   Je commande
@@ -77,7 +79,8 @@ const Home = () => {
           {isAdmin && (
             <div className="card">
               <h3>Gérer les commandes</h3>
-              <p>Consultez, modifiez et suivez toutes les commandes de vos clients.</p>
+              <p className="desktop-only">Consultez, modifiez et suivez toutes les commandes de vos clients.</p>
+              <p className="mobile-only">Voir et gérer les commandes.</p>
               <p>
                 <Link to="/admin/commandes" className="btn primary">
                   Gérer les commandes
@@ -86,8 +89,9 @@ const Home = () => {
             </div>
           )}
           <div className="card">
-            <h3>Découvrir le menu</h3>
-            <p>Découvrez notre sélection de biscuits faits maison</p>
+            <h3>Menu</h3>
+            <p className="desktop-only">Découvrez notre sélection de biscuits faits maison</p>
+            <p className="mobile-only">Biscuits faits maison</p>
             <p>
               <Link to="/biscuits" className="btn">
                 Voir les biscuits
@@ -95,8 +99,9 @@ const Home = () => {
             </p>
           </div>
           <div className="card">
-            <h3>Dites-nous ce que vous en pensez</h3>
-            <p>Découvrez ce que pensent nos clients et partagez votre expérience.</p>
+            <h3>Avis</h3>
+            <p className="desktop-only">Découvrez ce que pensent nos clients et partagez votre expérience.</p>
+            <p className="mobile-only">Lisez et laissez un avis.</p>
             <p>
               <Link to="/commentaires" className="btn outline">
                 Voir les commentaires

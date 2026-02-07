@@ -130,3 +130,32 @@ body {
   padding-left: 20px;
 }
 
+/* Utilitaires affichage mobile / desktop */
+.desktop-only {
+  display: block;
+}
+.mobile-only {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .desktop-only {
+    display: none !important;
+  }
+  .mobile-only {
+    display: block !important;
+  }
+  .mobile-only.inline {
+    display: inline !important;
+  }
+  body {
+    font-size: 15px;
+  }
+  /* Zones de touch plus grandes sur mobile */
+  .btn,
+  button:not(.btn-remove) {
+    min-height: 44px;
+    padding: 12px 20px;
+  }
+}
+

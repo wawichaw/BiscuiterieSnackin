@@ -6,23 +6,37 @@ import './Biscuits.css';
 const Biscuits = () => {
   const [biscuits, setBiscuits] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     fetchBiscuits();
   }, []);
 
   const fetchBiscuits = async () => {
+    setError(null);
+    setLoading(true);
     try {
       const response = await api.get('/biscuits');
-      setBiscuits(response.data.data.biscuits);
-    } catch (error) {
-      console.error('Erreur lors du chargement des biscuits:', error);
+      const list = response.data?.data?.biscuits;
+      setBiscuits(Array.isArray(list) ? list : []);
+    } catch (err) {
+      console.error('Erreur chargement biscuits:', err);
+      setBiscuits([]);
+      setError(err.response?.status === 404 ? 'Aucun biscuit pour le moment.' : 'Impossible de charger le menu. Vérifiez que le serveur est démarré (backend) et que l’adresse API est correcte.');
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading) {
+  const getImageUrl = (biscuit) => {
+    if (!biscuit?.image) return null;
+    const img = biscuit.image;
+    if (img.startsWith('data:') || img.startsWith('http://') || img.startsWith('https://')) return img;
+    const base = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/api\/?$/, '') || window.location.origin;
+    return base + (img.startsWith('/') ? '' : '/') + img;
+  };
+
+  if (loading && biscuits.length === 0) {
     return <div className="loading">Chargement...</div>;
   }
 
@@ -30,22 +44,36 @@ const Biscuits = () => {
     <div className="biscuits-page">
       <div className="biscuits-header">
         <h1>🍪 Nos Biscuits</h1>
-        <p>Découvrez notre sélection de biscuits faits maison</p>
+        <p className="desktop-only">Découvrez notre sélection de biscuits faits maison</p>
+        <p className="mobile-only">Biscuits faits maison</p>
       </div>
 
+      {error && (
+        <div className="biscuits-error">
+          <p>{error}</p>
+          <p className="biscuits-error-hint desktop-only">Adresse API utilisée : {import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'}</p>
+          <button type="button" onClick={fetchBiscuits} className="btn-retry">Réessayer</button>
+        </div>
+      )}
+
       <div className="biscuits-grid">
-        {biscuits.map((biscuit) => (
+        {biscuits.map((biscuit) => {
+          const imageUrl = getImageUrl(biscuit);
+          return (
           <Link
             key={biscuit._id}
             to={`/biscuits/${biscuit._id}`}
             className="biscuit-card"
           >
             <div className="biscuit-image">
-              {biscuit.image ? (
-                <img src={biscuit.image} alt={biscuit.nom} />
-              ) : (
-                <div className="biscuit-placeholder">🍪</div>
-              )}
+              {imageUrl ? (
+                <img
+                  src={imageUrl}
+                  alt={biscuit.nom}
+                  onError={(e) => { e.target.style.display = 'none'; const next = e.target.nextElementSibling; if (next) next.style.display = 'flex'; }}
+                />
+              ) : null}
+              <div className="biscuit-placeholder" style={{ display: imageUrl ? 'none' : 'flex' }}>🍪</div>
             </div>
             <div className="biscuit-info">
               <h3>{biscuit.nom}</h3>
@@ -53,7 +81,14 @@ const Biscuits = () => {
               <div className="biscuit-price">{biscuit.prix} $</div>
             </div>
           </Link>
-        ))}
+          );
+        })}
+      </div>
+
+      <div className="biscuits-cta">
+        <Link to="/commander" className="btn-commander-now">
+          Commander maintenant !
+        </Link>
       </div>
     </div>
   );

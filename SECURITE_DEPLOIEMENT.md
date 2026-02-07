@@ -142,6 +142,14 @@ Le backend envoie les erreurs à Sentry si `SENTRY_DSN` est défini dans `backen
 5. **TOUJOURS** tester toutes les fonctionnalités avant de déployer
 6. **TOUJOURS** configurer les backups de la base de données
 
+## 🔧 Dépannage en développement
+
+- **Erreur « Serveur inaccessible » / Network Error / ERR_CONNECTION_RESET**  
+  Le frontend appelle le backend sur `http://localhost:5000/api`. Démarrez le backend : dans le dossier `backend`, lancez `npm run dev` (ou `node index.js`). Tant que le backend ne tourne pas, les commandes et le paiement échoueront.
+
+- **Avertissement Stripe « Stripe.js integrations must use HTTPS »**  
+  En local avec `http://localhost`, Stripe affiche cet avertissement mais fonctionne quand même pour les tests. En production, le site doit être en HTTPS (obligatoire pour Stripe).
+
 ## 📞 Support
 
 En cas de problème lors du déploiement, vérifiez :

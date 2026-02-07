@@ -102,6 +102,33 @@
 }
 
 /* Boîtes */
+.commander-first-box-cta {
+  text-align: center;
+  padding: 32px 20px;
+  margin-bottom: 24px;
+  background: linear-gradient(180deg, #fff8f9 0%, #fff 100%);
+  border-radius: 16px;
+  border: 2px dashed rgba(160, 22, 43, 0.2);
+}
+
+.commander-first-box-cta p {
+  margin: 0 0 16px 0;
+  color: #666;
+}
+
+.btn-add-first {
+  font-size: 18px;
+  padding: 14px 28px;
+}
+
+.no-biscuits-msg {
+  color: #888;
+  padding: 16px;
+  background: #f5f5f5;
+  border-radius: 12px;
+  margin: 0;
+}
+
 .boite-card {
   background: #fafafa;
   padding: 24px;
@@ -193,16 +220,44 @@
 
 .saveur-item {
   background: white;
-  padding: 16px;
+  padding: 12px;
   border-radius: 12px;
   border: 2px solid rgba(160, 22, 43, 0.1);
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 12px;
+}
+
+.saveur-item-image {
+  flex-shrink: 0;
+  width: 56px;
+  height: 56px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--cream, #fff8f5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.saveur-item-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.saveur-item-placeholder {
+  font-size: 28px;
+  display: none;
+}
+
+.saveur-item-placeholder.show {
+  display: flex;
 }
 
 .saveur-info {
   flex: 1;
+  min-width: 0;
 }
 
 .saveur-info strong {
@@ -568,17 +623,81 @@
 }
 
 @media (max-width: 768px) {
+  .commander-page {
+    margin: 16px auto;
+    padding: 0 12px;
+  }
+
+  .commander-page h1 {
+    font-size: 26px;
+    margin-bottom: 16px;
+  }
+
   .steps-indicator {
-    flex-direction: column;
-    gap: 10px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 24px;
+    padding: 12px 0;
   }
 
   .step::after {
     display: none;
   }
 
+  .step-label {
+    font-size: 12px;
+  }
+
+  .commander-step {
+    padding: 20px 16px;
+    margin-bottom: 20px;
+  }
+
+  .commander-step h2 {
+    font-size: 1.2rem;
+    margin-bottom: 8px;
+  }
+
+  .step-description-mobile {
+    color: #666;
+    font-size: 14px;
+    margin-bottom: 20px;
+    line-height: 1.4;
+  }
+
+  .commander-first-box-cta .btn-add-first {
+    width: 100%;
+  }
+
+  .boite-card {
+    padding: 16px;
+  }
+
+  .boite-header h3 {
+    font-size: 0.95rem;
+  }
+
+  .boite-saveurs label,
+  .boite-taille label {
+    font-size: 14px;
+  }
+
+  .reception-card .mobile-only {
+    font-size: 13px;
+    color: #666;
+    margin: 4px 0 0;
+  }
+
   .saveurs-grid {
     grid-template-columns: 1fr;
+  }
+
+  .taille-btn,
+  .date-btn {
+    min-height: 44px;
+    padding: 12px 16px;
   }
 
   .step-actions {
@@ -588,6 +707,24 @@
 
   .step-actions .btn {
     width: 100%;
+  }
+
+  .visiteur-infos {
+    padding: 16px;
+  }
+
+  .visiteur-infos h3 {
+    font-size: 1.1rem;
+    margin-bottom: 16px;
+  }
+
+  .confirmation-success,
+  .inscription-proposition {
+    padding: 20px 16px;
+  }
+
+  .confirmation-success h2 {
+    font-size: 1.4rem;
   }
 }
 
