@@ -31,6 +31,7 @@ app.use(helmet());
 const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
 const allowedOrigins = [
   frontendUrl,
+  'https://biscuiteriesnackin.com', // Domaine de production
   'http://localhost:3000',
   'http://localhost:3001',
   'http://localhost:5173', // Vite par défaut
