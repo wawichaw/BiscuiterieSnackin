@@ -1,0 +1,2 @@
+# Redirection SPA : toutes les routes vers index.html pour que React Router gère /login, /commander, etc.
+/*    /index.html   200
