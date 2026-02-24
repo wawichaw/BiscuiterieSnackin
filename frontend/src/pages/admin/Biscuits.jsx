@@ -6,6 +6,7 @@ const AdminBiscuits = () => {
   const [biscuits, setBiscuits] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [editingBiscuit, setEditingBiscuit] = useState(null);
   const [formData, setFormData] = useState({
     nom: '',
     description: '',
@@ -104,13 +105,20 @@ const AdminBiscuits = () => {
     setSuccess('');
 
     try {
-      const response = await api.post('/biscuits', {
+      const payload = {
         ...formData,
         prix: parseFloat(formData.prix),
         stock: parseInt(formData.stock) || 0,
-      });
+      };
 
-      setSuccess('Biscuit créé avec succès !');
+      if (editingBiscuit) {
+        await api.put(`/biscuits/${editingBiscuit._id}`, payload);
+        setSuccess('Biscuit modifié avec succès !');
+      } else {
+        await api.post('/biscuits', payload);
+        setSuccess('Biscuit créé avec succès !');
+      }
+
       setFormData({
         nom: '',
         description: '',
@@ -122,9 +130,10 @@ const AdminBiscuits = () => {
       });
       setImagePreview('');
       setShowForm(false);
+      setEditingBiscuit(null);
       fetchBiscuits(); // Rafraîchir la liste
     } catch (error) {
-      setError(error.response?.data?.message || 'Erreur lors de la création du biscuit');
+      setError(error.response?.data?.message || 'Erreur lors de l\'enregistrement du biscuit');
     }
   };
 
@@ -152,7 +161,27 @@ const AdminBiscuits = () => {
         <h1>🍪 Gérer les biscuits</h1>
         <button 
           className="btn btn-primary" 
-          onClick={() => setShowForm(!showForm)}
+          onClick={() => {
+            if (showForm && editingBiscuit) {
+              // Fermer le formulaire d'édition
+              setEditingBiscuit(null);
+              setFormData({
+                nom: '',
+                description: '',
+                prix: '',
+                saveur: '',
+                disponible: true,
+                stock: 0,
+                image: ''
+              });
+              setImagePreview('');
+              setShowForm(false);
+            } else {
+              // Basculer l'affichage du formulaire (création)
+              setEditingBiscuit(null);
+              setShowForm(!showForm);
+            }
+          }}
         >
           {showForm ? 'Annuler' : '+ Ajouter un biscuit'}
         </button>
@@ -163,7 +192,7 @@ const AdminBiscuits = () => {
 
       {showForm && (
         <form className="biscuit-form" onSubmit={handleSubmit}>
-          <h2>Nouveau biscuit</h2>
+          <h2>{editingBiscuit ? 'Modifier le biscuit' : 'Nouveau biscuit'}</h2>
           <div className="form-row">
             <div className="form-group">
               <label>Nom *</label>
@@ -288,7 +317,28 @@ const AdminBiscuits = () => {
                 </p>
               </div>
               <div className="biscuit-actions">
-                <button className="btn">Modifier</button>
+                <button
+                  className="btn"
+                  type="button"
+                  onClick={() => {
+                    setEditingBiscuit(biscuit);
+                    setFormData({
+                      nom: biscuit.nom || '',
+                      description: biscuit.description || '',
+                      prix: biscuit.prix != null ? biscuit.prix.toString() : '',
+                      saveur: biscuit.saveur || '',
+                      disponible: biscuit.disponible ?? true,
+                      stock: biscuit.stock != null ? biscuit.stock.toString() : '0',
+                      image: biscuit.image || ''
+                    });
+                    setImagePreview(biscuit.image || '');
+                    setError('');
+                    setSuccess('');
+                    setShowForm(true);
+                  }}
+                >
+                  Modifier
+                </button>
                 <button 
                   className="btn btn-danger" 
                   onClick={() => handleDelete(biscuit._id)}
