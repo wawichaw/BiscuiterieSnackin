@@ -1,0 +1,107 @@
+.admin-tarifs-page {
+  max-width: 800px;
+  margin: 40px auto;
+  padding: 0 20px;
+}
+
+.admin-tarifs-page .admin-header {
+  margin-bottom: 24px;
+}
+
+.admin-tarifs-page h1 {
+  font-size: 36px;
+  color: var(--cherry);
+  margin: 0;
+}
+
+.tarifs-form {
+  background: white;
+  padding: 30px;
+  border-radius: 16px;
+  border: 2px solid rgba(160, 22, 43, 0.1);
+}
+
+.tarifs-description {
+  color: #555;
+  margin-bottom: 24px;
+  font-size: 15px;
+}
+
+.tarifs-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  margin-bottom: 28px;
+}
+
+.tarif-card {
+  padding: 20px;
+  background: #fafafa;
+  border: 2px solid rgba(160, 22, 43, 0.15);
+  border-radius: 12px;
+}
+
+.tarif-label {
+  display: block;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 10px;
+  font-size: 15px;
+}
+
+.tarif-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tarif-input {
+  flex: 1;
+  padding: 12px;
+  border: 2px solid rgba(160, 22, 43, 0.2);
+  border-radius: 8px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.tarif-input:focus {
+  outline: none;
+  border-color: var(--cherry);
+}
+
+.tarif-suffix {
+  color: var(--cherry);
+  font-weight: 600;
+  font-size: 18px;
+}
+
+.tarifs-form .btn {
+  padding: 14px 28px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s ease;
+}
+
+.tarifs-form .btn-primary {
+  background: var(--cherry);
+  color: white;
+}
+
+.tarifs-form .btn-primary:hover:not(:disabled) {
+  background: #a0162b;
+  transform: translateY(-2px);
+}
+
+.tarifs-form .btn-primary:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+@media (max-width: 600px) {
+  .tarifs-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -17,13 +17,14 @@ import AdminCommandes from './pages/admin/Commandes';
 import AdminCommentaires from './pages/admin/Commentaires';
 import AdminHoraires from './pages/admin/Horaires';
 import AdminGalerie from './pages/admin/Galerie';
+import AdminTarifs from './pages/admin/Tarifs';
 import PrivateRoute from './components/PrivateRoute';
 import AdminRoute from './components/AdminRoute';
 
 function App() {
   return (
     <AuthProvider>
-      <Router>
+      <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <Layout>
           <Routes>
             {/* Public routes */}
@@ -102,6 +103,14 @@ function App() {
               element={
                 <AdminRoute>
                   <AdminGalerie />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/tarifs"
+              element={
+                <AdminRoute>
+                  <AdminTarifs />
                 </AdminRoute>
               }
             />

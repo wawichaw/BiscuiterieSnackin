@@ -7,6 +7,7 @@ const AdminBiscuits = () => {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingBiscuit, setEditingBiscuit] = useState(null);
+  const formRef = React.useRef(null);
   const [formData, setFormData] = useState({
     nom: '',
     description: '',
@@ -191,7 +192,7 @@ const AdminBiscuits = () => {
       {success && <div className="alert alert-success">{success}</div>}
 
       {showForm && (
-        <form className="biscuit-form" onSubmit={handleSubmit}>
+        <form ref={formRef} className="biscuit-form" onSubmit={handleSubmit}>
           <h2>{editingBiscuit ? 'Modifier le biscuit' : 'Nouveau biscuit'}</h2>
           <div className="form-row">
             <div className="form-group">
@@ -295,7 +296,7 @@ const AdminBiscuits = () => {
           </div>
 
           <button type="submit" className="btn btn-primary">
-            Créer le biscuit
+            {editingBiscuit ? 'Enregistrer les modifications' : 'Créer le biscuit'}
           </button>
         </form>
       )}
@@ -318,7 +319,7 @@ const AdminBiscuits = () => {
               </div>
               <div className="biscuit-actions">
                 <button
-                  className="btn"
+                  className="btn btn-primary"
                   type="button"
                   onClick={() => {
                     setEditingBiscuit(biscuit);
@@ -335,6 +336,8 @@ const AdminBiscuits = () => {
                     setError('');
                     setSuccess('');
                     setShowForm(true);
+                    // Faire défiler vers le formulaire après ouverture (React met à jour le DOM après)
+                    setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
                   }}
                 >
                   Modifier

@@ -1,0 +1,20 @@
+# Fichiers avec secrets / config locale (ne jamais committer)
+code.txt
+.env
+.env.local
+.env.*.local
+*.env
+
+# Logs et dépendances
+node_modules/
+npm-debug.log*
+
+# Build
+dist/
+build/
+
+# IDE / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

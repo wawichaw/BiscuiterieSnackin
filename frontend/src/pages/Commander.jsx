@@ -36,11 +36,27 @@ const Commander = () => {
   const [visiteurTelephone, setVisiteurTelephone] = useState('');
   const [commandeCreee, setCommandeCreee] = useState(null);
   const [paiementEnCours, setPaiementEnCours] = useState(false);
+  const [prixBoites, setPrixBoites] = useState({ 4: 15, 6: 20, 12: 35 });
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchBiscuits();
     genererDatesLivraison();
+  }, []);
+
+  useEffect(() => {
+    const fetchTarifs = async () => {
+      try {
+        const res = await api.get('/tarifs/boites');
+        const prix = res.data?.data?.prixBoites;
+        if (prix && typeof prix[4] === 'number' && typeof prix[6] === 'number' && typeof prix[12] === 'number') {
+          setPrixBoites({ 4: prix[4], 6: prix[6], 12: prix[12] });
+        }
+      } catch (e) {
+        console.warn('Tarifs boîtes non chargés, utilisation des valeurs par défaut.');
+      }
+    };
+    fetchTarifs();
   }, []);
 
   // Générer les jeudis disponibles pour la livraison (prochains 8 jeudis)
@@ -175,13 +191,6 @@ const Commander = () => {
     if (img.startsWith('data:') || img.startsWith('http://') || img.startsWith('https://')) return img;
     const base = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/api\/?$/, '') || window.location.origin;
     return (base + (img.startsWith('/') ? '' : '/') + img);
-  };
-
-  // Prix des boîtes
-  const prixBoites = {
-    4: 15.00,
-    6: 20.00,
-    12: 35.00
   };
 
   const ajouterBoite = () => {

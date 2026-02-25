@@ -14,6 +14,7 @@ import commentaireRoutes from './routes/commentaire.routes.js';
 import galerieRoutes from './routes/galerie.routes.js';
 import horaireRoutes from './routes/horaire.routes.js';
 import paiementRoutes from './routes/paiement.routes.js';
+import tarifsRoutes from './routes/tarifs.routes.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -100,6 +101,7 @@ app.use('/api/commentaires', commentaireRoutes);
 app.use('/api/horaires', horaireRoutes);
 app.use('/api/galerie', galerieRoutes);
 app.use('/api/paiement', paiementRoutes);
+app.use('/api/tarifs', tarifsRoutes);
 
 // Route 404
 app.use('*', (req, res) => {
