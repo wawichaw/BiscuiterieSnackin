@@ -14,7 +14,8 @@ const MAX_BASE64_IMAGE_LENGTH = 4 * 1024 * 1024;
 router.get('/', async (req, res) => {
   try {
     const photos = await GaleriePhoto.find({ actif: true })
-      .sort({ ordre: 1, createdAt: -1 });
+      .sort({ ordre: 1, createdAt: -1 })
+      .lean();
     
     res.json({
       success: true,

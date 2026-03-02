@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useRecaptcha } from '../hooks/useRecaptcha';
 import './Login.css';
@@ -11,8 +11,10 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const { login, loginGoogle } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const googleButtonRef = useRef(null);
   const { executeRecaptcha } = useRecaptcha();
+  const successMessage = location.state?.message;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -103,6 +105,12 @@ const Login = () => {
       <div className="login-card">
         <h2 className="login-title">🔐 Se connecter</h2>
 
+        {successMessage && (
+          <div className="success-alert" style={{ marginBottom: '1rem', padding: '1rem', background: '#e8f5e9', borderRadius: '8px', color: '#2e7d32' }}>
+            {successMessage}
+          </div>
+        )}
+
         {error && (
           <div className="error-alert">
             <ul>
@@ -152,6 +160,10 @@ const Login = () => {
             )}
 
             <div className="form-links">
+              <Link to="/forgot-password" className="form-link">
+                Mot de passe oublié ?
+              </Link>
+              <br />
               <Link to="/register" className="form-link">
                 Pas encore de compte ? S'inscrire
               </Link>

@@ -27,6 +27,8 @@ const galeriePhotoSchema = new mongoose.Schema({
   timestamps: true,
 });
 
+galeriePhotoSchema.index({ actif: 1, ordre: 1 });
+
 const GaleriePhoto = mongoose.model('GaleriePhoto', galeriePhotoSchema);
 
 export default GaleriePhoto;

@@ -343,5 +343,80 @@ L'équipe Snackin'
   }
 };
 
-export default { envoyerEmailConfirmation, envoyerEmailRemerciement };
+/**
+ * Envoie un email de réinitialisation de mot de passe
+ * @param {String} to - Adresse email
+ * @param {String} nom - Nom de l'utilisateur
+ * @param {String} resetUrl - Lien pour réinitialiser le mot de passe
+ */
+export const envoyerEmailResetMotDePasse = async (to, nom, resetUrl) => {
+  try {
+    const hasSendGrid = !!process.env.SENDGRID_API_KEY;
+    const hasResend = !!process.env.RESEND_API_KEY;
+    const hasSmtp = !!(process.env.SMTP_USER && process.env.SMTP_PASSWORD);
+    if (!hasSendGrid && !hasResend && !hasSmtp) {
+      console.warn('⚠️ Email non envoyé: configurez SENDGRID_API_KEY, RESEND_API_KEY ou SMTP.');
+      return { success: false, message: 'Aucun service email configuré' };
+    }
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: #a0162b; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+            .content { background: white; padding: 30px; border: 1px solid #ddd; border-radius: 0 0 8px 8px; }
+            .button { display: inline-block; padding: 12px 24px; background: #a0162b; color: white; text-decoration: none; border-radius: 6px; margin: 20px 0; }
+            .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
+            .warning { color: #666; font-size: 14px; margin-top: 24px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>🍪 Snackin' – Réinitialisation du mot de passe</h1>
+            </div>
+            <div class="content">
+              <p>Bonjour ${nom || 'Utilisateur'},</p>
+              <p>Vous avez demandé à réinitialiser votre mot de passe. Cliquez sur le lien ci-dessous pour en choisir un nouveau :</p>
+              <p><a href="${resetUrl}" class="button">Choisir un nouveau mot de passe</a></p>
+              <p class="warning">Ce lien expire dans 1 heure. Si vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer cet email.</p>
+              <p>L'équipe Snackin'</p>
+            </div>
+            <div class="footer">
+              <p>Cet email a été envoyé automatiquement. Merci de ne pas y répondre.</p>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+
+    const texte = `
+Bonjour ${nom || 'Utilisateur'},
+
+Vous avez demandé à réinitialiser votre mot de passe sur Snackin'.
+
+Cliquez sur ce lien pour choisir un nouveau mot de passe (valide 1 heure) :
+${resetUrl}
+
+Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.
+
+L'équipe Snackin'
+    `;
+
+    const subject = "🍪 Snackin' – Réinitialisation de votre mot de passe";
+    console.log('📧 Envoi email reset mot de passe (SendGrid/Resend/SMTP) à:', to);
+    const result = await sendEmail(to, subject, texte, html);
+    return result;
+  } catch (error) {
+    console.error('❌ Erreur envoi email reset mot de passe:', error.message);
+    if (error.response?.body) console.error('   Détails SendGrid:', JSON.stringify(error.response.body));
+    return { success: false, error: error.message };
+  }
+};
+
+export default { envoyerEmailConfirmation, envoyerEmailRemerciement, envoyerEmailResetMotDePasse };
 

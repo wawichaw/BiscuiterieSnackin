@@ -10,10 +10,9 @@ const router = express.Router();
 // @access  Public
 router.get('/', async (req, res) => {
   try {
-    // Vérifier si l'utilisateur est admin (optionnel, pour retourner tous les biscuits)
+    const light = req.query.light === '1' || req.query.light === 'true';
     let query = { disponible: true };
-    
-    // Si l'utilisateur est authentifié et admin, retourner tous les biscuits
+
     try {
       const authHeader = req.headers.authorization;
       if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -23,15 +22,16 @@ router.get('/', async (req, res) => {
         const User = (await import('../models/User.model.js')).default;
         const user = await User.findById(decoded.userId);
         if (user && user.isAdmin) {
-          query = {}; // Retourner tous les biscuits pour l'admin
+          query = {};
         }
       }
-    } catch (e) {
-      // Si erreur d'authentification, continuer avec la requête publique
-    }
+    } catch (e) {}
 
+    const select = light
+      ? 'nom description prix saveur disponible stock createdAt'
+      : 'nom description prix image saveur disponible stock createdAt';
     const biscuits = await Biscuit.find(query)
-      .select('nom description prix image saveur disponible stock createdAt')
+      .select(select)
       .sort({ createdAt: -1 })
       .lean();
     res.json({

@@ -252,10 +252,6 @@ const Commentaires = () => {
     return commentaire.nom || 'Anonyme';
   };
 
-  if (loading || loadingGalerie) {
-    return <div className="loading">Chargement...</div>;
-  }
-
   return (
     <div className="commentaires-page">
       {/* Header */}
@@ -269,8 +265,10 @@ const Commentaires = () => {
       </div>
 
       {/* Galerie admin en haut */}
-      {galeriePhotos.length > 0 && (
-        <div className="galerie-admin-section">
+      <div className="galerie-admin-section">
+        {loadingGalerie ? (
+          <div className="loading-inline">Chargement de la galerie...</div>
+        ) : galeriePhotos.length > 0 ? (
           <h2>📸 Notre Galerie</h2>
           <div 
             className="galerie-admin-carousel"
@@ -328,11 +326,15 @@ const Commentaires = () => {
             )}
           </div>
         </div>
-      )}
+        ) : null}
+      </div>
 
       {/* Commentaires approuvés au milieu avec swipe iOS */}
       <div className="commentaires-section">
         <h2>💬 Commentaires de nos clients</h2>
+        {loading ? (
+          <div className="loading-inline">Chargement des avis...</div>
+        ) : (
         <div 
           className="commentaires-gallery"
           ref={carouselRef}
@@ -459,6 +461,7 @@ const Commentaires = () => {
               </>
             )}
         </div>
+        )}
       </div>
 
       {/* Formulaire en bas */}

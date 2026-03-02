@@ -58,6 +58,8 @@ const commentaireSchema = new mongoose.Schema({
   timestamps: true,
 });
 
+commentaireSchema.index({ approuve: 1, createdAt: -1 });
+
 const Commentaire = mongoose.model('Commentaire', commentaireSchema);
 
 export default Commentaire;

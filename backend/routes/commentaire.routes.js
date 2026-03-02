@@ -37,7 +37,8 @@ router.get('/', async (req, res) => {
       .populate('user', 'name email')
       .populate('biscuit', 'nom')
       .populate('reponseAdmin.admin', 'name')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
     
     res.json({
       success: true,

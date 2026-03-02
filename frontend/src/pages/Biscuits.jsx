@@ -9,22 +9,48 @@ const Biscuits = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetchBiscuits();
+    const load = async () => {
+      try {
+        const cached = sessionStorage.getItem('snackin_biscuits');
+        if (cached) {
+          const { data, at } = JSON.parse(cached);
+          if (Date.now() - at < 120000 && Array.isArray(data)) {
+            setBiscuits(data);
+            setLoading(false);
+            setError(null);
+            fetchBiscuits(true);
+            return;
+          }
+        }
+        await fetchBiscuits(false);
+      } catch {
+        await fetchBiscuits(false);
+      }
+    };
+    load();
   }, []);
 
-  const fetchBiscuits = async () => {
-    setError(null);
-    setLoading(true);
+  const fetchBiscuits = async (background = false) => {
+    if (!background) {
+      setError(null);
+      setLoading(true);
+    }
     try {
       const response = await api.get('/biscuits');
       const list = response.data?.data?.biscuits;
-      setBiscuits(Array.isArray(list) ? list : []);
+      const next = Array.isArray(list) ? list : [];
+      setBiscuits(next);
+      try {
+        sessionStorage.setItem('snackin_biscuits', JSON.stringify({ data: next, at: Date.now() }));
+      } catch (_) {}
     } catch (err) {
-      console.error('Erreur chargement biscuits:', err);
-      setBiscuits([]);
-      setError(err.response?.status === 404 ? 'Aucun biscuit pour le moment.' : 'Impossible de charger le menu. Vérifiez que le serveur est démarré (backend) et que l’adresse API est correcte.');
+      if (!background) {
+        console.error('Erreur chargement biscuits:', err);
+        setBiscuits([]);
+        setError(err.response?.status === 404 ? 'Aucun biscuit pour le moment.' : 'Impossible de charger le menu. Vérifiez que le serveur est démarré (backend) et que l’adresse API est correcte.');
+      }
     } finally {
-      setLoading(false);
+      if (!background) setLoading(false);
     }
   };
 

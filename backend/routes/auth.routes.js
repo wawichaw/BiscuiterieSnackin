@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import express from 'express';
 import { body, validationResult } from 'express-validator';
 import { OAuth2Client } from 'google-auth-library';
@@ -6,6 +7,7 @@ import Commande from '../models/Commande.model.js';
 import { generateToken } from '../config/jwt.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { verifyRecaptcha } from '../middleware/recaptcha.middleware.js';
+import { envoyerEmailResetMotDePasse } from '../services/email.service.js';
 
 const router = express.Router();
 
@@ -322,6 +324,125 @@ router.post('/logout', authenticate, (req, res) => {
     success: true,
     message: 'Déconnexion réussie',
   });
+});
+
+// @route   POST /api/auth/forgot-password
+// @desc    Demander une réinitialisation de mot de passe (envoi d'un email avec lien)
+// @access  Public
+router.post('/forgot-password', [
+  body('email').isEmail().withMessage('Email invalide'),
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email invalide',
+        errors: errors.array(),
+      });
+    }
+
+    const { email } = req.body;
+    const emailNorm = email.trim().toLowerCase();
+    const user = await User.findOne({ email: emailNorm }).select('+password');
+
+    // Toujours renvoyer le même message (éviter de révéler si l'email existe)
+    const message = "Si un compte existe avec cet email, un lien de réinitialisation a été envoyé. Vérifiez votre boîte de réception (et les spams).";
+
+    if (!user) {
+      return res.json({ success: true, message });
+    }
+
+    // Utilisateurs Google uniquement (sans mot de passe) ne peuvent pas réinitialiser
+    if (user.googleId && !user.password) {
+      return res.json({ success: true, message });
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 heure
+    await User.findByIdAndUpdate(user._id, {
+      $set: { resetPasswordToken: token, resetPasswordExpires: expires },
+    });
+
+    const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
+    const resetUrl = `${frontendUrl}/reset-password?token=${encodeURIComponent(token)}`;
+    console.log('📧 Envoi email réinitialisation mot de passe à:', user.email);
+    const emailResult = await envoyerEmailResetMotDePasse(user.email, user.name, resetUrl);
+
+    if (!emailResult || !emailResult.success) {
+      console.error('❌ Échec envoi email reset:', emailResult?.error || emailResult?.message);
+      return res.status(500).json({
+        success: false,
+        message: 'Impossible d\'envoyer l\'email. Vérifiez la configuration SendGrid ou réessayez plus tard.',
+      });
+    }
+
+    return res.json({ success: true, message });
+  } catch (error) {
+    console.error('Erreur forgot-password:', error.message);
+    console.error('Stack:', error.stack);
+    const message = process.env.NODE_ENV === 'development'
+      ? (error.message || 'Erreur serveur. Veuillez réessayer plus tard.')
+      : 'Erreur serveur. Veuillez réessayer plus tard.';
+    return res.status(500).json({
+      success: false,
+      message,
+    });
+  }
+});
+
+// @route   POST /api/auth/reset-password
+// @desc    Réinitialiser le mot de passe avec le token reçu par email
+// @access  Public
+router.post('/reset-password', [
+  body('token').notEmpty().withMessage('Token requis'),
+  body('password').isLength({ min: 8 }).withMessage('Le mot de passe doit contenir au moins 8 caractères'),
+  body('password_confirmation').custom((value, { req }) => {
+    if (value !== req.body.password) {
+      throw new Error('Les mots de passe ne correspondent pas');
+    }
+    return true;
+  }),
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Erreurs de validation',
+        errors: errors.array(),
+      });
+    }
+
+    const { token, password } = req.body;
+    const user = await User.findOne({
+      resetPasswordToken: token,
+      resetPasswordExpires: { $gt: new Date() },
+    }).select('+password +resetPasswordToken +resetPasswordExpires');
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: 'Lien invalide ou expiré. Veuillez redemander une réinitialisation.',
+      });
+    }
+
+    user.password = password;
+    user.resetPasswordToken = null;
+    user.resetPasswordExpires = null;
+    await user.save();
+
+    return res.json({
+      success: true,
+      message: 'Mot de passe modifié. Vous pouvez vous connecter.',
+    });
+  } catch (error) {
+    console.error('Erreur reset-password:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Erreur serveur. Veuillez réessayer.',
+    });
+  }
 });
 
 export default router;

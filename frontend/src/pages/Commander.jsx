@@ -40,23 +40,33 @@ const Commander = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetchBiscuits();
+    let cancelled = false;
     genererDatesLivraison();
-  }, []);
 
-  useEffect(() => {
-    const fetchTarifs = async () => {
+    const loadInitialData = async () => {
       try {
-        const res = await api.get('/tarifs/boites');
-        const prix = res.data?.data?.prixBoites;
+        const [biscuitsRes, tarifsRes] = await Promise.all([
+          api.get('/biscuits?light=1'),
+          api.get('/tarifs/boites'),
+        ]);
+        if (cancelled) return;
+        const list = biscuitsRes.data?.data?.biscuits || [];
+        setBiscuits(list.filter(b => b.disponible !== false));
+        const prix = tarifsRes.data?.data?.prixBoites;
         if (prix && typeof prix[4] === 'number' && typeof prix[6] === 'number' && typeof prix[12] === 'number') {
           setPrixBoites({ 4: prix[4], 6: prix[6], 12: prix[12] });
         }
-      } catch (e) {
-        console.warn('Tarifs boîtes non chargés, utilisation des valeurs par défaut.');
+      } catch (error) {
+        if (!cancelled) {
+          console.error('Erreur chargement Commander:', error);
+          setBiscuits([]);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     };
-    fetchTarifs();
+    loadInitialData();
+    return () => { cancelled = true; };
   }, []);
 
   // Générer les jeudis disponibles pour la livraison (prochains 8 jeudis)
@@ -173,8 +183,8 @@ const Commander = () => {
 
   const fetchBiscuits = async () => {
     try {
-      const response = await api.get('/biscuits');
-      const list = response.data.data.biscuits || [];
+      const response = await api.get('/biscuits?light=1');
+      const list = response.data?.data?.biscuits || [];
       setBiscuits(list.filter(b => b.disponible !== false));
     } catch (error) {
       console.error('Erreur chargement biscuits:', error);

@@ -36,6 +36,8 @@ const biscuitSchema = new mongoose.Schema({
   timestamps: true,
 });
 
+biscuitSchema.index({ disponible: 1, createdAt: -1 });
+
 const Biscuit = mongoose.model('Biscuit', biscuitSchema);
 
 export default Biscuit;
