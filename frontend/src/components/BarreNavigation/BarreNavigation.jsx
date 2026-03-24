@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import logoImage from '../../assets/logo.png';
 import './BarreNavigation.css';
+
+const LOGO_URL = '/snackin-logo.png';
 
 const Layout = ({ children }) => {
   const { user, logout, isAdmin } = useAuth();
@@ -75,8 +76,8 @@ const Layout = ({ children }) => {
         <div className="snk-container">
           <Link className="snk-logo" to="/" onClick={closeMobileMenu}>
             <img
-              src={logoImage}
-              alt="Snackin logo"
+              src={LOGO_URL}
+              alt="Snackin'"
               style={{ width: '36px', height: '36px', objectFit: 'contain' }}
             />
             <strong>Snackin'</strong>
