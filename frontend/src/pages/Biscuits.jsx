@@ -11,7 +11,7 @@ const Biscuits = () => {
   useEffect(() => {
     const load = async () => {
       try {
-        const cached = sessionStorage.getItem('snackin_biscuits');
+        const cached = localStorage.getItem('snackin_biscuits');
         if (cached) {
           const { data, at } = JSON.parse(cached);
           if (Date.now() - at < 120000 && Array.isArray(data)) {
@@ -41,7 +41,7 @@ const Biscuits = () => {
       const next = Array.isArray(list) ? list : [];
       setBiscuits(next);
       try {
-        sessionStorage.setItem('snackin_biscuits', JSON.stringify({ data: next, at: Date.now() }));
+        localStorage.setItem('snackin_biscuits', JSON.stringify({ data: next, at: Date.now() }));
       } catch (_) {}
     } catch (err) {
       if (!background) {
@@ -78,7 +78,7 @@ const Biscuits = () => {
         <div className="biscuits-error">
           <p>{error}</p>
           <p className="biscuits-error-hint desktop-only">Adresse API utilisée : {import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'}</p>
-          <button type="button" onClick={fetchBiscuits} className="btn-retry">Réessayer</button>
+          <button type="button" onClick={() => fetchBiscuits(false)} className="btn-retry">Réessayer</button>
         </div>
       )}
 

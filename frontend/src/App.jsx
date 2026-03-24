@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import api from './services/api';
 import { AuthProvider } from './contexts/AuthContext';
 import Layout from './components/BarreNavigation/BarreNavigation';
 import Home from './pages/Home';
@@ -24,6 +25,47 @@ import PrivateRoute from './components/PrivateRoute';
 import AdminRoute from './components/AdminRoute';
 
 function App() {
+  useEffect(() => {
+    const prefetch = async () => {
+      try {
+        const [biscuitsRes, tarifsRes, commentairesRes, galerieRes] = await Promise.allSettled([
+          api.get('/biscuits'),
+          api.get('/tarifs/boites'),
+          api.get('/commentaires'),
+          api.get('/galerie'),
+        ]);
+
+        if (biscuitsRes.status === 'fulfilled') {
+          const list = biscuitsRes.value.data?.data?.biscuits;
+          if (Array.isArray(list)) {
+            localStorage.setItem('snackin_biscuits', JSON.stringify({ data: list, at: Date.now() }));
+          }
+        }
+        if (tarifsRes.status === 'fulfilled') {
+          const prix = tarifsRes.value.data?.data?.prixBoites;
+          if (prix) {
+            localStorage.setItem('snackin_tarifs_boites', JSON.stringify({ data: prix, at: Date.now() }));
+          }
+        }
+        if (commentairesRes.status === 'fulfilled') {
+          const commentaires = commentairesRes.value.data?.data?.commentaires;
+          if (Array.isArray(commentaires)) {
+            localStorage.setItem('snackin_commentaires', JSON.stringify({ data: commentaires, at: Date.now() }));
+          }
+        }
+        if (galerieRes.status === 'fulfilled') {
+          const photos = galerieRes.value.data?.data?.photos;
+          if (Array.isArray(photos)) {
+            localStorage.setItem('snackin_galerie', JSON.stringify({ data: photos, at: Date.now() }));
+          }
+        }
+      } catch (_) {
+        // Prefetch best effort: ignorer silencieusement les erreurs.
+      }
+    };
+    prefetch();
+  }, []);
+
   return (
     <AuthProvider>
       <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>

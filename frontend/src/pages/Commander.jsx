@@ -5,6 +5,8 @@ import { useAuth } from '../contexts/AuthContext';
 import StripeCheckout from '../components/StripeCheckout';
 import './Commander.css';
 
+const CACHE_TTL_MS = 5 * 60 * 1000;
+
 const Commander = () => {
   const { user } = useAuth();
   const [biscuits, setBiscuits] = useState([]);
@@ -43,6 +45,30 @@ const Commander = () => {
     let cancelled = false;
     genererDatesLivraison();
 
+    // Afficher instantanément depuis le cache persistant si disponible.
+    try {
+      const cachedBiscuits = localStorage.getItem('snackin_biscuits');
+      if (cachedBiscuits) {
+        const { data, at } = JSON.parse(cachedBiscuits);
+        if (Date.now() - at < CACHE_TTL_MS && Array.isArray(data)) {
+          setBiscuits(data.filter(b => b.disponible !== false));
+          setLoading(false);
+        }
+      }
+      const cachedTarifs = localStorage.getItem('snackin_tarifs_boites');
+      if (cachedTarifs) {
+        const { data, at } = JSON.parse(cachedTarifs);
+        if (Date.now() - at < CACHE_TTL_MS && data) {
+          const p4 = Number(data[4]);
+          const p6 = Number(data[6]);
+          const p12 = Number(data[12]);
+          if (!Number.isNaN(p4) && !Number.isNaN(p6) && !Number.isNaN(p12)) {
+            setPrixBoites({ 4: p4, 6: p6, 12: p12 });
+          }
+        }
+      }
+    } catch (_) {}
+
     const loadInitialData = async () => {
       try {
         const [biscuitsRes, tarifsRes] = await Promise.all([
@@ -52,9 +78,15 @@ const Commander = () => {
         if (cancelled) return;
         const list = biscuitsRes.data?.data?.biscuits || [];
         setBiscuits(list.filter(b => b.disponible !== false));
+        try {
+          localStorage.setItem('snackin_biscuits', JSON.stringify({ data: list, at: Date.now() }));
+        } catch (_) {}
         const prix = tarifsRes.data?.data?.prixBoites;
         if (prix && typeof prix[4] === 'number' && typeof prix[6] === 'number' && typeof prix[12] === 'number') {
           setPrixBoites({ 4: prix[4], 6: prix[6], 12: prix[12] });
+          try {
+            localStorage.setItem('snackin_tarifs_boites', JSON.stringify({ data: prix, at: Date.now() }));
+          } catch (_) {}
         }
       } catch (error) {
         if (!cancelled) {

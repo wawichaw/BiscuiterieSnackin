@@ -4,6 +4,8 @@ import { useRecaptcha } from '../hooks/useRecaptcha';
 import api from '../services/api';
 import './Commentaires.css';
 
+const CACHE_TTL_MS = 5 * 60 * 1000;
+
 const Commentaires = () => {
   const [commentaires, setCommentaires] = useState([]);
   const [galeriePhotos, setGaleriePhotos] = useState([]);
@@ -28,6 +30,28 @@ const Commentaires = () => {
   const [photos, setPhotos] = useState([]);
 
   useEffect(() => {
+    // Hydrater immédiatement depuis le cache local.
+    try {
+      const cachedCommentaires = localStorage.getItem('snackin_commentaires');
+      if (cachedCommentaires) {
+        const { data, at } = JSON.parse(cachedCommentaires);
+        if (Date.now() - at < CACHE_TTL_MS && Array.isArray(data)) {
+          const approuves = data.filter(c => c.approuve);
+          setCommentaires(approuves);
+          setLoading(false);
+        }
+      }
+
+      const cachedGalerie = localStorage.getItem('snackin_galerie');
+      if (cachedGalerie) {
+        const { data, at } = JSON.parse(cachedGalerie);
+        if (Date.now() - at < CACHE_TTL_MS && Array.isArray(data)) {
+          setGaleriePhotos(data);
+          setLoadingGalerie(false);
+        }
+      }
+    } catch (_) {}
+
     fetchCommentaires();
     fetchGalerie();
   }, []);
@@ -35,7 +59,11 @@ const Commentaires = () => {
   const fetchGalerie = async () => {
     try {
       const response = await api.get('/galerie');
-      setGaleriePhotos(response.data.data.photos || []);
+      const photos = response.data.data.photos || [];
+      setGaleriePhotos(photos);
+      try {
+        localStorage.setItem('snackin_galerie', JSON.stringify({ data: photos, at: Date.now() }));
+      } catch (_) {}
     } catch (error) {
       console.error('Erreur:', error);
     } finally {
@@ -145,6 +173,9 @@ const Commentaires = () => {
       // Filtrer pour n'afficher que les commentaires approuvés dans la galerie publique
       const commentairesApprouves = commentairesData.filter(c => c.approuve);
       setCommentaires(commentairesApprouves);
+      try {
+        localStorage.setItem('snackin_commentaires', JSON.stringify({ data: commentairesData, at: Date.now() }));
+      } catch (_) {}
     } catch (error) {
       console.error('Erreur:', error);
     } finally {
@@ -269,6 +300,7 @@ const Commentaires = () => {
         {loadingGalerie ? (
           <div className="loading-inline">Chargement de la galerie...</div>
         ) : galeriePhotos.length > 0 ? (
+          <>
           <h2>📸 Notre Galerie</h2>
           <div 
             className="galerie-admin-carousel"
@@ -325,7 +357,7 @@ const Commentaires = () => {
               </div>
             )}
           </div>
-        </div>
+        </>
         ) : null}
       </div>
 
