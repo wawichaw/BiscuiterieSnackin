@@ -1,2 +1,3 @@
 # Redirection SPA : toutes les routes vers index.html pour que React Router gère /login, /commander, etc.
+# Les fichiers présents dans le déploiement (robots.txt, favicon.ico, assets/, etc.) sont servis en priorité.
 /*    /index.html   200

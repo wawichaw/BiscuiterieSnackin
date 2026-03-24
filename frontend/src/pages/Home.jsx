@@ -1,16 +1,27 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import AdminDashboard from './admin/Dashboard';
 import cookieOreo from '../assets/cookie_oreo.png';
 import './Home.css';
+
+const AdminDashboard = lazy(() => import('./admin/Dashboard'));
 
 const Home = () => {
   const { user, isAdmin } = useAuth();
 
-  // Si admin connecté, afficher le dashboard
+  // Si admin connecté, afficher le dashboard (chunk séparé pour ne pas alourdir l’accueil public)
   if (user && isAdmin) {
-    return <AdminDashboard />;
+    return (
+      <Suspense
+        fallback={
+          <div className="route-fallback" role="status" aria-live="polite">
+            Chargement…
+          </div>
+        }
+      >
+        <AdminDashboard />
+      </Suspense>
+    );
   }
 
   return (

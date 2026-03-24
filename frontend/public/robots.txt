@@ -1,0 +1,8 @@
+# Fichier robots.txt — texte brut (pas de HTML).
+# Les crawlers doivent recevoir ce contenu sur https://votredomaine/robots.txt
+
+User-agent: *
+Allow: /
+
+# Décommentez quand vous publierez un sitemap à la racine du site :
+# Sitemap: https://biscuiteriesnackin.com/sitemap.xml

@@ -1,28 +1,37 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import api from './services/api';
 import { AuthProvider } from './contexts/AuthContext';
 import Layout from './components/BarreNavigation/BarreNavigation';
 import Home from './pages/Home';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import ForgotPassword from './pages/ForgotPassword';
-import ResetPassword from './pages/ResetPassword';
-import Biscuits from './pages/Biscuits';
-import BiscuitDetail from './pages/BiscuitDetail';
-import Commander from './pages/Commander';
-import MesCommandes from './pages/MesCommandes';
-import Commentaires from './pages/Commentaires';
-import About from './pages/About';
-import AdminDashboard from './pages/admin/Dashboard';
-import AdminBiscuits from './pages/admin/Biscuits';
-import AdminCommandes from './pages/admin/Commandes';
-import AdminCommentaires from './pages/admin/Commentaires';
-import AdminHoraires from './pages/admin/Horaires';
-import AdminGalerie from './pages/admin/Galerie';
-import AdminTarifs from './pages/admin/Tarifs';
 import PrivateRoute from './components/PrivateRoute';
 import AdminRoute from './components/AdminRoute';
+
+const Login = lazy(() => import('./pages/Login'));
+const Register = lazy(() => import('./pages/Register'));
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
+const ResetPassword = lazy(() => import('./pages/ResetPassword'));
+const Biscuits = lazy(() => import('./pages/Biscuits'));
+const BiscuitDetail = lazy(() => import('./pages/BiscuitDetail'));
+const Commander = lazy(() => import('./pages/Commander'));
+const MesCommandes = lazy(() => import('./pages/MesCommandes'));
+const Commentaires = lazy(() => import('./pages/Commentaires'));
+const About = lazy(() => import('./pages/About'));
+const AdminDashboard = lazy(() => import('./pages/admin/Dashboard'));
+const AdminBiscuits = lazy(() => import('./pages/admin/Biscuits'));
+const AdminCommandes = lazy(() => import('./pages/admin/Commandes'));
+const AdminCommentaires = lazy(() => import('./pages/admin/Commentaires'));
+const AdminHoraires = lazy(() => import('./pages/admin/Horaires'));
+const AdminGalerie = lazy(() => import('./pages/admin/Galerie'));
+const AdminTarifs = lazy(() => import('./pages/admin/Tarifs'));
+
+function RouteFallback() {
+  return (
+    <div className="route-fallback" role="status" aria-live="polite">
+      Chargement…
+    </div>
+  );
+}
 
 function App() {
   useEffect(() => {
@@ -70,6 +79,7 @@ function App() {
     <AuthProvider>
       <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <Layout>
+          <Suspense fallback={<RouteFallback />}>
           <Routes>
             {/* Public routes */}
             <Route path="/" element={<Home />} />
@@ -164,6 +174,7 @@ function App() {
             {/* 404 */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+          </Suspense>
         </Layout>
       </Router>
     </AuthProvider>

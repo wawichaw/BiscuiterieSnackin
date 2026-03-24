@@ -159,3 +159,14 @@ body {
   }
 }
 
+/* Chargement des pages découpées (React.lazy) */
+.route-fallback {
+  min-height: 45vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--cherry);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+

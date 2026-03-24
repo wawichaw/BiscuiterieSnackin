@@ -1,0 +1,12 @@
+# Build frontend Vite depuis la racine du dépôt
+# https://docs.netlify.com/configure-builds/file-based-configuration/
+[build]
+  base = "frontend"
+  publish = "dist"
+  command = "npm run build"
+
+# Fichiers hashés Vite : cache long (le nom change à chaque build)
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
