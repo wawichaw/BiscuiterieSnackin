@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useRecaptcha } from '../hooks/useRecaptcha';
+import { loadGoogleGsi } from '../utils/loadGoogleGsi';
 import './Register.css';
 
 const Register = () => {
@@ -26,53 +27,6 @@ const Register = () => {
     if (urlNom) setName(urlNom);
   }, [searchParams]);
 
-  // Initialiser Google Sign-In
-  useEffect(() => {
-    const initGoogleSignIn = () => {
-      if (window.google && import.meta.env.VITE_GOOGLE_CLIENT_ID) {
-        try {
-          window.google.accounts.id.initialize({
-            client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
-            callback: handleGoogleSignIn,
-          });
-
-          if (googleButtonRef.current) {
-            window.google.accounts.id.renderButton(
-              googleButtonRef.current,
-              {
-                theme: 'outline',
-                size: 'large',
-                width: 300,
-                text: 'signup_with',
-                locale: 'fr',
-              }
-            );
-          }
-        } catch (err) {
-          console.error('Erreur lors de l\'initialisation Google Sign-In:', err);
-        }
-      }
-    };
-
-    if (window.google) {
-      initGoogleSignIn();
-    } else {
-      const checkGoogle = setInterval(() => {
-        if (window.google) {
-          clearInterval(checkGoogle);
-          initGoogleSignIn();
-        }
-      }, 100);
-
-      setTimeout(() => {
-        clearInterval(checkGoogle);
-        if (!window.google) {
-          console.warn('Google Identity Services n\'a pas pu être chargé');
-        }
-      }, 5000);
-    }
-  }, []);
-
   const handleGoogleSignIn = async (response) => {
     setError('');
     setErrors({});
@@ -88,6 +42,52 @@ const Register = () => {
 
     setLoading(false);
   };
+
+  const googleSignInCallbackRef = useRef(handleGoogleSignIn);
+  googleSignInCallbackRef.current = handleGoogleSignIn;
+
+  useEffect(() => {
+    if (!import.meta.env.VITE_GOOGLE_CLIENT_ID) return undefined;
+
+    let cancelled = false;
+
+    const initGoogleSignIn = () => {
+      if (!window.google?.accounts?.id) return;
+      try {
+        window.google.accounts.id.initialize({
+          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+          callback: (resp) => googleSignInCallbackRef.current(resp),
+        });
+
+        if (googleButtonRef.current) {
+          window.google.accounts.id.renderButton(
+            googleButtonRef.current,
+            {
+              theme: 'outline',
+              size: 'large',
+              width: 300,
+              text: 'signup_with',
+              locale: 'fr',
+            }
+          );
+        }
+      } catch (err) {
+        console.error('Erreur lors de l\'initialisation Google Sign-In:', err);
+      }
+    };
+
+    loadGoogleGsi()
+      .then(() => {
+        if (!cancelled) initGoogleSignIn();
+      })
+      .catch(() => {
+        console.warn('Google Identity Services n\'a pas pu être chargé');
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
