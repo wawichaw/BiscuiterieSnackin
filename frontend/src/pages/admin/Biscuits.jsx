@@ -256,7 +256,7 @@ const AdminBiscuits = () => {
             />
             {imagePreview && (
               <div className="image-preview">
-                <img src={imagePreview} alt="Aperçu" />
+                <img src={imagePreview} alt="Aperçu" loading="lazy" decoding="async" />
                 <button
                   type="button"
                   onClick={() => {

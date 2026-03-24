@@ -140,7 +140,7 @@ const AdminGalerie = () => {
               />
               {imagePreview && (
                 <div className="image-preview">
-                  <img src={imagePreview} alt="Aperçu" />
+                  <img src={imagePreview} alt="Aperçu" loading="lazy" decoding="async" />
                 </div>
               )}
             </div>
@@ -198,7 +198,7 @@ const AdminGalerie = () => {
             <div className="galerie-photos-grid">
               {photos.map((photo) => (
                 <div key={photo._id} className="galerie-photo-item">
-                  <img src={photo.image} alt={photo.titre || 'Photo'} />
+                  <img src={photo.image} alt={photo.titre || 'Photo'} loading="lazy" decoding="async" />
                   <div className="photo-info">
                     {photo.titre && <h3>{photo.titre}</h3>}
                     {photo.description && <p>{photo.description}</p>}

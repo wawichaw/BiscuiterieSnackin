@@ -36,7 +36,13 @@ const BiscuitDetail = () => {
       <div className="biscuit-detail">
         <div className="biscuit-detail-image">
           {biscuit.image ? (
-            <img src={biscuit.image} alt={biscuit.nom} />
+            <img
+              src={biscuit.image}
+              alt={biscuit.nom}
+              loading="eager"
+              decoding="async"
+              fetchPriority="high"
+            />
           ) : (
             <div className="biscuit-placeholder">🍪</div>
           )}

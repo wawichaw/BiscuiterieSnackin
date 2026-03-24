@@ -77,6 +77,8 @@ const Layout = ({ children }) => {
             <img
               src={logoImage}
               alt="Snackin logo"
+              loading="eager"
+              decoding="async"
               style={{ width: '36px', height: '36px', objectFit: 'contain' }}
             />
             <strong>Snackin'</strong>

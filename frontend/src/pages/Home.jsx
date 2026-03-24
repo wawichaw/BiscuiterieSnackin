@@ -52,6 +52,9 @@ const Home = () => {
               <img
                 src={cookieOreo}
                 alt="Cookie Oreo"
+                loading="eager"
+                decoding="async"
+                fetchPriority="high"
               />
             </div>
             <span className="sticker">Best-seller ✨</span>

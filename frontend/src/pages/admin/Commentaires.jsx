@@ -99,7 +99,7 @@ const AdminCommentaires = () => {
                 {commentaire.photos && commentaire.photos.length > 0 && (
                   <div className="commentaire-photos-admin">
                     {commentaire.photos.map((photo, index) => (
-                      <img key={index} src={photo} alt={`Photo ${index + 1}`} />
+                      <img key={index} src={photo} alt={`Photo ${index + 1}`} loading="lazy" decoding="async" />
                     ))}
                   </div>
                 )}

@@ -324,6 +324,8 @@ const Commentaires = () => {
                     <img 
                       src={photo.image} 
                       alt={photo.titre || `Photo ${index + 1}`}
+                      loading="lazy"
+                      decoding="async"
                       onLoad={(e) => {
                         // Ajuster dynamiquement la hauteur du conteneur selon l'image
                         const img = e.target;
@@ -431,7 +433,7 @@ const Commentaires = () => {
                                     transform: `translateX(${(photoIndex - (isActive ? currentPhotoIndex : 0)) * 100}%)`,
                                   }}
                                 >
-                                  <img src={photo} alt={`Photo ${photoIndex + 1}`} />
+                                  <img src={photo} alt={`Photo ${photoIndex + 1}`} loading="lazy" decoding="async" />
                                 </div>
                               ))}
                             </div>
@@ -559,7 +561,7 @@ const Commentaires = () => {
               <div className="photos-preview">
                 {photos.map((photo, index) => (
                   <div key={index} className="photo-preview">
-                    <img src={photo} alt={`Preview ${index + 1}`} />
+                    <img src={photo} alt={`Preview ${index + 1}`} loading="lazy" decoding="async" />
                     <button
                       type="button"
                       onClick={() => removePhoto(index)}

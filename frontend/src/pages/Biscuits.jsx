@@ -96,6 +96,8 @@ const Biscuits = () => {
                 <img
                   src={imageUrl}
                   alt={biscuit.nom}
+                  loading="lazy"
+                  decoding="async"
                   onError={(e) => { e.target.style.display = 'none'; const next = e.target.nextElementSibling; if (next) next.style.display = 'flex'; }}
                 />
               ) : null}

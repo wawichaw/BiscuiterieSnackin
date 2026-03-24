@@ -646,6 +646,8 @@ const Commander = () => {
                               <img
                                 src={imageUrl}
                                 alt={biscuit.nom}
+                                loading="lazy"
+                                decoding="async"
                                 onError={(e) => { e.target.style.display = 'none'; e.target.nextElementSibling?.classList.add('show'); }}
                               />
                             ) : null}
