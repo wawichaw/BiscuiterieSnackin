@@ -41,6 +41,15 @@ const Commander = () => {
   const [prixBoites, setPrixBoites] = useState({ 4: 15, 6: 20, 12: 35 });
   const navigate = useNavigate();
 
+  const mergeImages = (newList, oldList = []) => {
+    const oldById = new Map(oldList.map((b) => [b._id, b]));
+    return newList.map((b) => {
+      if (b.image) return b;
+      const old = oldById.get(b._id);
+      return old?.image ? { ...b, image: old.image } : b;
+    });
+  };
+
   useEffect(() => {
     let cancelled = false;
     genererDatesLivraison();
@@ -77,9 +86,20 @@ const Commander = () => {
         ]);
         if (cancelled) return;
         const list = biscuitsRes.data?.data?.biscuits || [];
-        setBiscuits(list.filter(b => b.disponible !== false));
+        const cachedList = (() => {
+          try {
+            const raw = localStorage.getItem('snackin_biscuits');
+            if (!raw) return [];
+            const parsed = JSON.parse(raw);
+            return Array.isArray(parsed?.data) ? parsed.data : [];
+          } catch (_) {
+            return [];
+          }
+        })();
+        const merged = mergeImages(list, cachedList).filter(b => b.disponible !== false);
+        setBiscuits(merged);
         try {
-          localStorage.setItem('snackin_biscuits', JSON.stringify({ data: list, at: Date.now() }));
+          localStorage.setItem('snackin_biscuits', JSON.stringify({ data: merged, at: Date.now() }));
         } catch (_) {}
         const prix = tarifsRes.data?.data?.prixBoites;
         if (prix && typeof prix[4] === 'number' && typeof prix[6] === 'number' && typeof prix[12] === 'number') {
