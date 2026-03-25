@@ -35,10 +35,14 @@ function RouteFallback() {
 
 function App() {
   useEffect(() => {
+    const path = window.location.pathname;
+    const shouldPrefetch = path === '/' || path === '/commander';
+    if (!shouldPrefetch) return undefined;
+
     const prefetch = async () => {
       try {
         const [biscuitsRes, tarifsRes, commentairesRes, galerieRes] = await Promise.allSettled([
-          api.get('/biscuits'),
+          api.get('/biscuits?light=1'),
           api.get('/tarifs/boites'),
           api.get('/commentaires'),
           api.get('/galerie'),
@@ -72,7 +76,22 @@ function App() {
         // Prefetch best effort: ignorer silencieusement les erreurs.
       }
     };
-    prefetch();
+
+    // Laisse le rendu initial respirer avant de précharger.
+    let idleId;
+    if ('requestIdleCallback' in window) {
+      idleId = window.requestIdleCallback(() => prefetch(), { timeout: 1500 });
+    } else {
+      idleId = window.setTimeout(() => prefetch(), 500);
+    }
+
+    return () => {
+      if ('cancelIdleCallback' in window && typeof idleId === 'number') {
+        window.cancelIdleCallback(idleId);
+      } else {
+        clearTimeout(idleId);
+      }
+    };
   }, []);
 
   return (
