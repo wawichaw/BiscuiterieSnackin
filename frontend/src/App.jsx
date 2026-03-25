@@ -36,7 +36,7 @@ function RouteFallback() {
 function App() {
   useEffect(() => {
     const path = window.location.pathname;
-    const shouldPrefetch = path === '/' || path === '/commander';
+    const shouldPrefetch = path === '/commander';
     if (!shouldPrefetch) return undefined;
 
     const prefetch = async () => {

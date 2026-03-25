@@ -260,14 +260,18 @@ footer {
   }
 
   .cta-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: 10px;
     margin-top: 14px;
   }
 
   .cta-row .btn {
+    width: 100%;
     min-height: 44px;
     padding: 12px 20px;
     font-size: 15px;
+    text-align: center;
   }
 
   .section {

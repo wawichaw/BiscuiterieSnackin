@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import logoImage from '../../assets/logo.png';
 import './BarreNavigation.css';
 
 const Layout = ({ children }) => {
@@ -75,10 +74,12 @@ const Layout = ({ children }) => {
         <div className="snk-container">
           <Link className="snk-logo" to="/" onClick={closeMobileMenu}>
             <img
-              src={logoImage}
+              src="/logo.png"
               alt="Snackin logo"
               loading="eager"
               decoding="async"
+              width="36"
+              height="36"
               style={{ width: '36px', height: '36px', objectFit: 'contain' }}
             />
             <strong>Snackin'</strong>

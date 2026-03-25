@@ -1,4 +1,4 @@
-import React, { lazy, Suspense } from 'react';
+import React, { lazy, Suspense, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import cookieOreo from '../assets/cookie_oreo.png';
@@ -8,6 +8,16 @@ const AdminDashboard = lazy(() => import('./admin/Dashboard'));
 
 const Home = () => {
   const { user, isAdmin } = useAuth();
+  const [showHeroImage, setShowHeroImage] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    return window.innerWidth > 768;
+  });
+
+  useEffect(() => {
+    const onResize = () => setShowHeroImage(window.innerWidth > 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   // Si admin connecté, afficher le dashboard (chunk séparé pour ne pas alourdir l’accueil public)
   if (user && isAdmin) {
@@ -52,24 +62,26 @@ const Home = () => {
                   Gérer les commandes
                 </Link>
               )}
-              <Link to="/biscuits" className="btn">
+              <Link to="/biscuits" className="btn primary">
                 Découvrez notre sélection
               </Link>
             </div>
           </div>
 
-          <div className="hero-card">
-            <div className="hero-visual">
-              <img
-                src={cookieOreo}
-                alt="Cookie Oreo"
-                loading="eager"
-                decoding="async"
-                fetchPriority="high"
-              />
+          {showHeroImage && (
+            <div className="hero-card">
+              <div className="hero-visual">
+                <img
+                  src={cookieOreo}
+                  alt="Cookie Oreo"
+                  loading="eager"
+                  decoding="async"
+                  fetchpriority="high"
+                />
+              </div>
+              <span className="sticker">Best-seller ✨</span>
             </div>
-            <span className="sticker">Best-seller ✨</span>
-          </div>
+          )}
         </div>
       </section>
 

@@ -41,7 +41,7 @@ const BiscuitDetail = () => {
               alt={biscuit.nom}
               loading="eager"
               decoding="async"
-              fetchPriority="high"
+              fetchpriority="high"
             />
           ) : (
             <div className="biscuit-placeholder">🍪</div>
