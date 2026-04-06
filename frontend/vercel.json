@@ -4,6 +4,15 @@
   ],
   "headers": [
     {
+      "source": "/favicon.ico",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "image/png"
+        }
+      ]
+    },
+    {
       "source": "/assets/(.*)",
       "headers": [
         {

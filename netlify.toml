@@ -5,6 +5,12 @@
   publish = "dist"
   command = "npm run build"
 
+# favicon.ico = copie binaire de logo.png (PNG) : type explicite pour crawlers / navigateurs
+[[headers]]
+  for = "/favicon.ico"
+  [headers.values]
+    Content-Type = "image/png"
+
 # Fichiers hashés Vite : cache long (le nom change à chaque build)
 [[headers]]
   for = "/assets/*"
