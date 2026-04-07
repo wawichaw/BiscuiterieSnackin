@@ -49,6 +49,7 @@ const Commander = () => {
       return old?.image ? { ...b, image: old.image } : b;
     });
   };
+  const hasAnyImage = (list = []) => list.some((b) => Boolean(b?.image));
 
   useEffect(() => {
     let cancelled = false;
@@ -101,6 +102,26 @@ const Commander = () => {
         try {
           localStorage.setItem('snackin_biscuits', JSON.stringify({ data: merged, at: Date.now() }));
         } catch (_) {}
+
+        // Fallback : si on n'a aucune image (cache vide ou ancien), charger la version complète en arrière-plan.
+        if (!hasAnyImage(merged)) {
+          api.get('/biscuits')
+            .then((fullRes) => {
+              if (cancelled) return;
+              const fullList = fullRes.data?.data?.biscuits || [];
+              const withImages = mergeImages(merged, fullList).filter(b => b.disponible !== false);
+              if (hasAnyImage(withImages)) {
+                setBiscuits(withImages);
+                try {
+                  localStorage.setItem('snackin_biscuits', JSON.stringify({ data: withImages, at: Date.now() }));
+                } catch (_) {}
+              }
+            })
+            .catch(() => {
+              // Best effort seulement : on garde la liste light en cas d'erreur.
+            });
+        }
+
         const prix = tarifsRes.data?.data?.prixBoites;
         if (prix && typeof prix[4] === 'number' && typeof prix[6] === 'number' && typeof prix[12] === 'number') {
           setPrixBoites({ 4: prix[4], 6: prix[6], 12: prix[12] });
