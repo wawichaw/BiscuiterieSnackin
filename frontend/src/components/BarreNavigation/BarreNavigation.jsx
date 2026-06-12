@@ -75,14 +75,14 @@ const Layout = ({ children }) => {
           <Link className="snk-logo" to="/" onClick={closeMobileMenu}>
             <img
               src="/logo.png"
-              alt="Snackin logo"
+              alt="Biscuiterie Snakin'"
               loading="eager"
               decoding="async"
               width="36"
               height="36"
               style={{ width: '36px', height: '36px', objectFit: 'contain' }}
             />
-            <strong>Snackin'</strong>
+            <strong>Biscuiterie Snakin'</strong>
           </Link>
           <span className="snk-badge">Fait avec amour</span>
 
