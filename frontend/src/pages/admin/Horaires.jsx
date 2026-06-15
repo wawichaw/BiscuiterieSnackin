@@ -27,7 +27,11 @@ const AdminHoraires = () => {
   const fetchHoraires = async () => {
     try {
       const response = await api.get('/horaires/all');
-      setHoraires(response.data.data.horaires);
+      const list = response.data.data.horaires || [];
+      setHoraires(list);
+      if (list.length === 0) {
+        setShowForm(true);
+      }
     } catch (err) {
       console.error('Erreur:', err);
       setError('Erreur lors du chargement des horaires');
@@ -80,17 +84,22 @@ const AdminHoraires = () => {
     return <div className="loading">Chargement...</div>;
   }
 
+  const hasHoraires = horaires.length > 0;
+  const formVisible = showForm || !hasHoraires;
+
   return (
     <div className="admin-horaires-page">
       <div className="admin-header">
         <h1>🕐 Horaires de ramassage</h1>
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={() => setShowForm(!showForm)}
-        >
-          {showForm ? 'Annuler' : '+ Ajouter une plage'}
-        </button>
+        {hasHoraires && (
+          <button
+            type="button"
+            className="btn btn-primary btn-add-plage"
+            onClick={() => setShowForm(!showForm)}
+          >
+            {showForm ? 'Annuler' : '+ Ajouter une plage'}
+          </button>
+        )}
       </div>
 
       <p className="horaires-intro">
@@ -101,7 +110,19 @@ const AdminHoraires = () => {
       {error && <div className="alert alert-error">{error}</div>}
       {success && <div className="alert alert-success">{success}</div>}
 
-      {showForm && (
+      {!formVisible && (
+        <div className="horaires-actions">
+          <button
+            type="button"
+            className="btn btn-primary btn-add-plage"
+            onClick={() => setShowForm(true)}
+          >
+            + Ajouter une plage horaire
+          </button>
+        </div>
+      )}
+
+      {formVisible && (
         <form className="horaire-form" onSubmit={handleSubmit}>
           <h2>Nouvelle plage de ramassage</h2>
 
@@ -203,9 +224,18 @@ const AdminHoraires = () => {
       )}
 
       <div className="horaires-list">
-        {horaires.length === 0 ? (
-          <p className="horaires-empty">Aucun horaire configuré. Ajoutez une première plage ci-dessus.</p>
-        ) : (
+        {!hasHoraires && !formVisible ? (
+          <div className="horaires-empty">
+            <p>Aucun horaire configuré pour le moment.</p>
+            <button
+              type="button"
+              className="btn btn-primary btn-add-plage"
+              onClick={() => setShowForm(true)}
+            >
+              + Ajouter ma première plage
+            </button>
+          </div>
+        ) : !hasHoraires ? null : (
           <div className="horaires-grid">
             {horaires.map((horaire) => (
               <div key={horaire._id} className="horaire-card">

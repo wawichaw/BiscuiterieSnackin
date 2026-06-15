@@ -1,22 +1,41 @@
 .admin-horaires-page {
   max-width: 1200px;
-  margin: 40px auto;
+  margin: 24px auto 40px;
   padding: 0 20px;
 }
 
-.admin-header {
+.admin-horaires-page .admin-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 30px;
+  margin-bottom: 16px;
   flex-wrap: wrap;
-  gap: 20px;
+  gap: 16px;
 }
 
 .admin-horaires-page h1 {
-  font-size: 36px;
+  font-size: clamp(1.5rem, 4vw, 2.25rem);
   color: var(--cherry);
   margin: 0;
+  line-height: 1.2;
+}
+
+.horaires-actions {
+  margin-bottom: 24px;
+}
+
+.admin-horaires-page .btn-add-plage {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 14px 28px;
+  font-size: 16px;
+  background: var(--cherry);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(160, 22, 43, 0.25);
 }
 
 .horaire-form {
@@ -235,7 +254,14 @@
 .horaires-empty {
   color: #666;
   text-align: center;
-  padding: 40px 20px;
+  padding: 32px 20px;
+  background: white;
+  border-radius: 16px;
+  border: 2px dashed rgba(160, 22, 43, 0.2);
+}
+
+.horaires-empty p {
+  margin: 0 0 20px;
 }
 
 .form-row-three {
@@ -262,6 +288,15 @@
 }
 
 @media (max-width: 768px) {
+  .admin-horaires-page .admin-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-horaires-page .btn-add-plage {
+    width: 100%;
+  }
+
   .form-row,
   .form-row-three {
     grid-template-columns: 1fr;

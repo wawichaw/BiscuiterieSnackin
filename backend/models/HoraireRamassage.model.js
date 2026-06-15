@@ -3,12 +3,35 @@ import mongoose from 'mongoose';
 const horaireRamassageSchema = new mongoose.Schema({
   pointRamassage: {
     type: String,
-    enum: ['laval', 'montreal', 'repentigny'],
     required: true,
+    trim: true,
+    lowercase: true,
+  },
+  ville: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  adresse: {
+    type: String,
+    required: true,
+    trim: true,
   },
   date: {
     type: Date,
     required: true,
+  },
+  heureDebut: {
+    type: String,
+    trim: true,
+  },
+  heureFin: {
+    type: String,
+    trim: true,
+  },
+  intervalleMinutes: {
+    type: Number,
+    default: 30,
   },
   heures: [{
     type: String,
@@ -22,10 +45,8 @@ const horaireRamassageSchema = new mongoose.Schema({
   timestamps: true,
 });
 
-// Index pour éviter les doublons
 horaireRamassageSchema.index({ pointRamassage: 1, date: 1 }, { unique: true });
 
 const HoraireRamassage = mongoose.model('HoraireRamassage', horaireRamassageSchema);
 
 export default HoraireRamassage;
-
