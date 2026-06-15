@@ -2,16 +2,21 @@ import React, { useState, useEffect } from 'react';
 import api from '../../services/api';
 import './Horaires.css';
 
+const defaultForm = {
+  ville: '',
+  adresse: '',
+  date: '',
+  heureDebut: '10:00',
+  heureFin: '18:00',
+  intervalleMinutes: 30,
+  disponible: true,
+};
+
 const AdminHoraires = () => {
   const [horaires, setHoraires] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({
-    pointRamassage: 'laval',
-    date: '',
-    heures: [''],
-    disponible: true,
-  });
+  const [formData, setFormData] = useState(defaultForm);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -23,30 +28,12 @@ const AdminHoraires = () => {
     try {
       const response = await api.get('/horaires/all');
       setHoraires(response.data.data.horaires);
-    } catch (error) {
-      console.error('Erreur:', error);
+    } catch (err) {
+      console.error('Erreur:', err);
       setError('Erreur lors du chargement des horaires');
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleAddHeure = () => {
-    setFormData({
-      ...formData,
-      heures: [...formData.heures, ''],
-    });
-  };
-
-  const handleRemoveHeure = (index) => {
-    const newHeures = formData.heures.filter((_, i) => i !== index);
-    setFormData({ ...formData, heures: newHeures });
-  };
-
-  const handleHeureChange = (index, value) => {
-    const newHeures = [...formData.heures];
-    newHeures[index] = value;
-    setFormData({ ...formData, heures: newHeures });
   };
 
   const handleSubmit = async (e) => {
@@ -54,116 +41,87 @@ const AdminHoraires = () => {
     setError('');
     setSuccess('');
 
-    // Filtrer les heures vides
-    const heuresValides = formData.heures.filter(h => h.trim() !== '');
-
-    if (heuresValides.length === 0) {
-      setError('Au moins une heure est requise');
+    if (formData.heureFin <= formData.heureDebut) {
+      setError('L\'heure de fin doit être après l\'heure de début');
       return;
     }
 
-    // Valider le format des heures (HH:MM)
-    const heureRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
-    for (const heure of heuresValides) {
-      if (!heureRegex.test(heure)) {
-        setError(`Format d'heure invalide: ${heure}. Utilisez le format HH:MM (ex: 10:00)`);
-        return;
-      }
-    }
-
     try {
-      await api.post('/horaires', {
-        ...formData,
-        heures: heuresValides,
-      });
-
-      setSuccess('Horaire créé/mis à jour avec succès !');
-      setFormData({
-        pointRamassage: 'laval',
-        date: '',
-        heures: [''],
-        disponible: true,
-      });
+      await api.post('/horaires', formData);
+      setSuccess('Plage horaire enregistrée avec succès !');
+      setFormData(defaultForm);
       setShowForm(false);
       fetchHoraires();
-    } catch (error) {
-      setError(error.response?.data?.message || 'Erreur lors de la création de l\'horaire');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Erreur lors de l\'enregistrement');
     }
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Êtes-vous sûr de vouloir supprimer cet horaire ?')) {
-      return;
-    }
-
+    if (!window.confirm('Supprimer cette plage horaire ?')) return;
     try {
       await api.delete(`/horaires/${id}`);
-      setSuccess('Horaire supprimé avec succès !');
+      setSuccess('Horaire supprimé.');
       fetchHoraires();
-    } catch (error) {
-      setError(error.response?.data?.message || 'Erreur lors de la suppression');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Erreur lors de la suppression');
     }
   };
 
-  const grouperParLieu = () => {
-    const groupes = {};
-    horaires.forEach(horaire => {
-      if (!groupes[horaire.pointRamassage]) {
-        groupes[horaire.pointRamassage] = [];
-      }
-      groupes[horaire.pointRamassage].push(horaire);
+  const formatDate = (dateStr) =>
+    new Date(dateStr).toLocaleDateString('fr-FR', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
     });
-    return groupes;
-  };
 
   if (loading) {
     return <div className="loading">Chargement...</div>;
   }
 
-  const groupes = grouperParLieu();
-  const nomsLieux = {
-    laval: 'Laval',
-    montreal: 'Montréal',
-    repentigny: 'Repentigny'
-  };
-
   return (
     <div className="admin-horaires-page">
       <div className="admin-header">
-        <h1>🕐 Gérer les horaires de ramassage</h1>
+        <h1>🕐 Horaires de ramassage</h1>
         <button
+          type="button"
           className="btn btn-primary"
           onClick={() => setShowForm(!showForm)}
         >
-          {showForm ? 'Annuler' : '+ Ajouter un horaire'}
+          {showForm ? 'Annuler' : '+ Ajouter une plage'}
         </button>
       </div>
+
+      <p className="horaires-intro">
+        Définissez une date, une plage horaire, la ville et l&apos;adresse de pick-up.
+        Les créneaux sont générés automatiquement pour les clients.
+      </p>
 
       {error && <div className="alert alert-error">{error}</div>}
       {success && <div className="alert alert-success">{success}</div>}
 
       {showForm && (
         <form className="horaire-form" onSubmit={handleSubmit}>
-          <h2>Nouvel horaire</h2>
+          <h2>Nouvelle plage de ramassage</h2>
 
           <div className="form-row">
             <div className="form-group">
-              <label>Point de ramassage *</label>
-              <select
-                value={formData.pointRamassage}
-                onChange={(e) => setFormData({ ...formData, pointRamassage: e.target.value })}
-                required
-                className="form-select"
-              >
-                <option value="laval">Laval</option>
-                <option value="montreal">Montréal</option>
-                <option value="repentigny">Repentigny</option>
-              </select>
-            </div>
-
-            <div className="form-group">
-              <label>Date *</label>
+              <label htmlFor="ville">Ville *</label>
               <input
+                id="ville"
+                type="text"
+                value={formData.ville}
+                onChange={(e) => setFormData({ ...formData, ville: e.target.value })}
+                placeholder="Ex: Laval"
+                required
+                className="form-input"
+              />
+            </div>
+            <div className="form-group">
+              <label htmlFor="date">Date *</label>
+              <input
+                id="date"
                 type="date"
                 value={formData.date}
                 onChange={(e) => setFormData({ ...formData, date: e.target.value })}
@@ -175,36 +133,56 @@ const AdminHoraires = () => {
           </div>
 
           <div className="form-group">
-            <label>Heures disponibles *</label>
-            <small className="form-help">Format: HH:MM (ex: 10:00, 14:30)</small>
-            {formData.heures.map((heure, index) => (
-              <div key={index} className="heure-input-row">
-                <input
-                  type="text"
-                  value={heure}
-                  onChange={(e) => handleHeureChange(index, e.target.value)}
-                  placeholder="10:00"
-                  pattern="^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$"
-                  className="form-input heure-input"
-                />
-                {formData.heures.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveHeure(index)}
-                    className="btn-remove"
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
-            ))}
-            <button
-              type="button"
-              onClick={handleAddHeure}
-              className="btn btn-secondary"
-            >
-              + Ajouter une heure
-            </button>
+            <label htmlFor="adresse">Adresse de ramassage *</label>
+            <input
+              id="adresse"
+              type="text"
+              value={formData.adresse}
+              onChange={(e) => setFormData({ ...formData, adresse: e.target.value })}
+              placeholder="Ex: 123 rue Principale, Laval H7X 1A1"
+              required
+              className="form-input"
+            />
+          </div>
+
+          <div className="form-row form-row-three">
+            <div className="form-group">
+              <label htmlFor="heureDebut">Heure de début *</label>
+              <input
+                id="heureDebut"
+                type="time"
+                value={formData.heureDebut}
+                onChange={(e) => setFormData({ ...formData, heureDebut: e.target.value })}
+                required
+                className="form-input"
+              />
+            </div>
+            <div className="form-group">
+              <label htmlFor="heureFin">Heure de fin *</label>
+              <input
+                id="heureFin"
+                type="time"
+                value={formData.heureFin}
+                onChange={(e) => setFormData({ ...formData, heureFin: e.target.value })}
+                required
+                className="form-input"
+              />
+            </div>
+            <div className="form-group">
+              <label htmlFor="intervalle">Créneaux tous les</label>
+              <select
+                id="intervalle"
+                value={formData.intervalleMinutes}
+                onChange={(e) =>
+                  setFormData({ ...formData, intervalleMinutes: Number(e.target.value) })
+                }
+                className="form-select"
+              >
+                <option value={15}>15 minutes</option>
+                <option value={30}>30 minutes</option>
+                <option value={60}>60 minutes</option>
+              </select>
+            </div>
           </div>
 
           <div className="form-group">
@@ -214,55 +192,54 @@ const AdminHoraires = () => {
                 checked={formData.disponible}
                 onChange={(e) => setFormData({ ...formData, disponible: e.target.checked })}
               />
-              Disponible
+              {' '}Disponible pour les commandes
             </label>
           </div>
 
           <button type="submit" className="btn btn-primary">
-            Enregistrer
+            Enregistrer la plage
           </button>
         </form>
       )}
 
       <div className="horaires-list">
-        {Object.keys(groupes).length === 0 ? (
-          <p>Aucun horaire configuré</p>
+        {horaires.length === 0 ? (
+          <p className="horaires-empty">Aucun horaire configuré. Ajoutez une première plage ci-dessus.</p>
         ) : (
-          Object.keys(groupes).map(lieu => (
-            <div key={lieu} className="lieu-section">
-              <h2>{nomsLieux[lieu]}</h2>
-              <div className="horaires-grid">
-                {groupes[lieu].map((horaire) => (
-                  <div key={horaire._id} className="horaire-card">
-                    <div className="horaire-header">
-                      <strong>
-                        {new Date(horaire.date).toLocaleDateString('fr-FR', {
-                          weekday: 'long',
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric'
-                        })}
-                      </strong>
-                      <span className={`badge ${horaire.disponible ? 'available' : 'unavailable'}`}>
-                        {horaire.disponible ? 'Disponible' : 'Indisponible'}
-                      </span>
-                    </div>
-                    <div className="horaire-heures">
-                      {horaire.heures.map((heure, index) => (
-                        <span key={index} className="heure-badge">{heure}</span>
-                      ))}
-                    </div>
-                    <button
-                      onClick={() => handleDelete(horaire._id)}
-                      className="btn btn-danger"
-                    >
-                      Supprimer
-                    </button>
-                  </div>
-                ))}
+          <div className="horaires-grid">
+            {horaires.map((horaire) => (
+              <div key={horaire._id} className="horaire-card">
+                <div className="horaire-header">
+                  <strong>{formatDate(horaire.date)}</strong>
+                  <span className={`badge ${horaire.disponible ? 'available' : 'unavailable'}`}>
+                    {horaire.disponible ? 'Disponible' : 'Indisponible'}
+                  </span>
+                </div>
+                <p className="horaire-lieu">
+                  <strong>{horaire.ville}</strong>
+                  {horaire.adresse && <span className="horaire-adresse">{horaire.adresse}</span>}
+                </p>
+                {(horaire.heureDebut && horaire.heureFin) && (
+                  <p className="horaire-plage">
+                    Plage : {horaire.heureDebut} – {horaire.heureFin}
+                    {horaire.intervalleMinutes ? ` (tous les ${horaire.intervalleMinutes} min)` : ''}
+                  </p>
+                )}
+                <div className="horaire-heures">
+                  {horaire.heures.map((heure) => (
+                    <span key={heure} className="heure-badge">{heure}</span>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleDelete(horaire._id)}
+                  className="btn btn-danger"
+                >
+                  Supprimer
+                </button>
               </div>
-            </div>
-          ))
+            ))}
+          </div>
         )}
       </div>
     </div>
@@ -270,4 +247,3 @@ const AdminHoraires = () => {
 };
 
 export default AdminHoraires;
-

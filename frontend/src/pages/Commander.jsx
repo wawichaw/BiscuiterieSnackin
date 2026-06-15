@@ -15,6 +15,7 @@ const Commander = () => {
   const [currentStep, setCurrentStep] = useState(1); // 1: boîtes, 2: réception, 3: paiement/infos, 4: confirmation
   const [typeReception, setTypeReception] = useState(''); // 'ramassage' ou 'livraison'
   const [pointRamassage, setPointRamassage] = useState('');
+  const [lieuxRamassage, setLieuxRamassage] = useState([]);
   const [dateRamassage, setDateRamassage] = useState('');
   const [heureRamassage, setHeureRamassage] = useState('');
   // Pour la livraison
@@ -193,6 +194,31 @@ const Commander = () => {
     const d = parseLocalDate(dateStr);
     return d ? d.toLocaleDateString('fr-FR', options) : '';
   };
+
+  const lieuRamassageSelectionne = lieuxRamassage.find((l) => l.pointRamassage === pointRamassage);
+
+  const libellePointRamassage = (slug) => {
+    const lieu = lieuxRamassage.find((l) => l.pointRamassage === slug);
+    if (lieu) {
+      return lieu.adresse ? `${lieu.ville} — ${lieu.adresse}` : lieu.ville;
+    }
+    return slug ? slug.charAt(0).toUpperCase() + slug.slice(1) : '';
+  };
+
+  // Charger les points de ramassage configurés par l'admin
+  useEffect(() => {
+    if (typeReception !== 'ramassage') return;
+    const loadLieux = async () => {
+      try {
+        const response = await api.get('/horaires/lieux');
+        setLieuxRamassage(response.data?.data?.lieux || []);
+      } catch (err) {
+        console.error('Erreur chargement lieux ramassage:', err);
+        setLieuxRamassage([]);
+      }
+    };
+    loadLieux();
+  }, [typeReception, currentStep]);
 
   // Charger les dates disponibles quand le lieu change (pour ramassage)
   useEffect(() => {
@@ -792,20 +818,33 @@ const Commander = () => {
             <>
               <div className="form-group">
                 <label>Point de ramassage *</label>
-                <select
-                  value={pointRamassage}
-                  onChange={(e) => {
-                    setPointRamassage(e.target.value);
-                    setHeureRamassage('');
-                  }}
-                  required
-                  className="form-select"
-                >
-                  <option value="">Sélectionnez un lieu</option>
-                  <option value="laval">Laval</option>
-                  <option value="montreal">Montréal</option>
-                  <option value="repentigny">Repentigny</option>
-                </select>
+                {lieuxRamassage.length === 0 ? (
+                  <p className="no-dates">
+                    Aucun point de ramassage disponible. L&apos;administrateur doit d&apos;abord ajouter des horaires.
+                  </p>
+                ) : (
+                  <select
+                    value={pointRamassage}
+                    onChange={(e) => {
+                      setPointRamassage(e.target.value);
+                      setHeureRamassage('');
+                    }}
+                    required
+                    className="form-select"
+                  >
+                    <option value="">Sélectionnez un lieu</option>
+                    {lieuxRamassage.map((lieu) => (
+                      <option key={lieu.pointRamassage} value={lieu.pointRamassage}>
+                        {lieu.ville}{lieu.adresse ? ` — ${lieu.adresse}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                {lieuRamassageSelectionne?.adresse && (
+                  <p className="pickup-address-hint">
+                    📍 {lieuRamassageSelectionne.adresse}, {lieuRamassageSelectionne.ville}
+                  </p>
+                )}
               </div>
 
               {pointRamassage && (
@@ -1117,7 +1156,7 @@ const Commander = () => {
               <>
                 <div className="resume-item">
                   <span>Point de ramassage:</span>
-                  <strong>{pointRamassage.charAt(0).toUpperCase() + pointRamassage.slice(1)}</strong>
+                  <strong>{libellePointRamassage(pointRamassage)}</strong>
                 </div>
                 <div className="resume-item">
                   <span>Date et heure:</span>
@@ -1176,7 +1215,7 @@ const Commander = () => {
               <>
                 <div className="resume-item">
                   <span>Point de ramassage:</span>
-                  <strong>{commandeCreee.pointRamassage ? commandeCreee.pointRamassage.charAt(0).toUpperCase() + commandeCreee.pointRamassage.slice(1) : 'N/A'}</strong>
+                  <strong>{libellePointRamassage(commandeCreee.pointRamassage)}</strong>
                 </div>
                 <div className="resume-item">
                   <span>Date et heure:</span>

@@ -40,6 +40,12 @@ const Dashboard = () => {
           <h3>Prix des boîtes</h3>
           <p>Modifier les prix des boîtes 4, 6 et 12 biscuits</p>
         </Link>
+
+        <Link to="/admin/horaires" className="dashboard-card">
+          <div className="card-icon">🕐</div>
+          <h3>Horaires de ramassage</h3>
+          <p>Ajouter des plages horaires, villes et adresses de pick-up</p>
+        </Link>
       </div>
     </div>
   );
