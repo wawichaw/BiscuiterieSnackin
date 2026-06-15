@@ -44,7 +44,7 @@ const Dashboard = () => {
         <Link to="/admin/horaires" className="dashboard-card">
           <div className="card-icon">🕐</div>
           <h3>Horaires de ramassage</h3>
-          <p>Ajouter des plages horaires, villes et adresses de pick-up</p>
+          <p>Choisir les jours (ex. mercredi, samedi), villes et adresses de pick-up</p>
         </Link>
       </div>
     </div>

@@ -40,3 +40,83 @@ export function genererHeures(heureDebut, heureFin, intervalleMinutes = 30) {
 }
 
 export const HEURE_REGEX = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+
+/** 0 = dimanche … 6 = samedi (convention JavaScript) */
+export const JOURS_LABELS = {
+  0: 'Dimanche',
+  1: 'Lundi',
+  2: 'Mardi',
+  3: 'Mercredi',
+  4: 'Jeudi',
+  5: 'Vendredi',
+  6: 'Samedi',
+};
+
+export const JOURS_ORDRE = [1, 2, 3, 4, 5, 6, 0];
+
+export function formatIsoDateLocal(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+export function parseIsoDateLocal(iso) {
+  const [y, m, d] = String(iso).split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+export function getJourSemaineFromIso(iso) {
+  return parseIsoDateLocal(iso).getDay();
+}
+
+export function formatJoursSemaine(joursSemaine = []) {
+  return [...joursSemaine]
+    .sort((a, b) => JOURS_ORDRE.indexOf(a) - JOURS_ORDRE.indexOf(b))
+    .map((j) => JOURS_LABELS[j])
+    .join(', ');
+}
+
+/** Dates concrètes à partir des jours récurrents (semaine en cours + semaines suivantes). */
+export function genererDatesProchainesSemaines(joursSemaine, nbSemaines = 4, fromDate = new Date()) {
+  if (!joursSemaine?.length) return [];
+
+  const today = new Date(fromDate);
+  today.setHours(0, 0, 0, 0);
+  const end = new Date(today);
+  end.setDate(end.getDate() + nbSemaines * 7);
+
+  const dates = [];
+  const cursor = new Date(today);
+  while (cursor <= end) {
+    if (joursSemaine.includes(cursor.getDay())) {
+      dates.push(formatIsoDateLocal(cursor));
+    }
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return dates;
+}
+
+export function collectDatesFromHoraire(horaire, nbSemaines = 4) {
+  const doc = horaire.toObject ? horaire.toObject() : horaire;
+  if (doc.joursSemaine?.length) {
+    return genererDatesProchainesSemaines(doc.joursSemaine, nbSemaines);
+  }
+  if (doc.date) {
+    const iso = formatIsoDateLocal(new Date(doc.date));
+    const today = formatIsoDateLocal(new Date());
+    return iso >= today ? [iso] : [];
+  }
+  return [];
+}
+
+export function horaireCorrespondADate(horaire, dateIso) {
+  const doc = horaire.toObject ? horaire.toObject() : horaire;
+  if (doc.joursSemaine?.length) {
+    return doc.joursSemaine.includes(getJourSemaineFromIso(dateIso));
+  }
+  if (doc.date) {
+    return formatIsoDateLocal(new Date(doc.date)) === dateIso;
+  }
+  return false;
+}

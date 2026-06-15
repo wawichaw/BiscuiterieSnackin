@@ -17,9 +17,15 @@ const horaireRamassageSchema = new mongoose.Schema({
     required: true,
     trim: true,
   },
+  /** @deprecated — anciennes entrées à date fixe ; préférer joursSemaine */
   date: {
     type: Date,
-    required: true,
+    required: false,
+  },
+  /** 0 = dimanche … 6 = samedi */
+  joursSemaine: {
+    type: [Number],
+    default: [],
   },
   heureDebut: {
     type: String,
@@ -45,7 +51,7 @@ const horaireRamassageSchema = new mongoose.Schema({
   timestamps: true,
 });
 
-horaireRamassageSchema.index({ pointRamassage: 1, date: 1 }, { unique: true });
+horaireRamassageSchema.index({ pointRamassage: 1 }, { unique: true });
 
 const HoraireRamassage = mongoose.model('HoraireRamassage', horaireRamassageSchema);
 

@@ -2,10 +2,20 @@ import React, { useState, useEffect } from 'react';
 import api from '../../services/api';
 import './Horaires.css';
 
+const JOURS_SEMAINE = [
+  { value: 1, label: 'Lun' },
+  { value: 2, label: 'Mar' },
+  { value: 3, label: 'Mer' },
+  { value: 4, label: 'Jeu' },
+  { value: 5, label: 'Ven' },
+  { value: 6, label: 'Sam' },
+  { value: 0, label: 'Dim' },
+];
+
 const defaultForm = {
   ville: '',
   adresse: '',
-  date: '',
+  joursSemaine: [],
   heureDebut: '10:00',
   heureFin: '18:00',
   intervalleMinutes: 30,
@@ -40,10 +50,24 @@ const AdminHoraires = () => {
     }
   };
 
+  const toggleJour = (jour) => {
+    setFormData((prev) => {
+      const selected = prev.joursSemaine.includes(jour)
+        ? prev.joursSemaine.filter((j) => j !== jour)
+        : [...prev.joursSemaine, jour];
+      return { ...prev, joursSemaine: selected.sort((a, b) => a - b) };
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setSuccess('');
+
+    if (formData.joursSemaine.length === 0) {
+      setError('Sélectionnez au moins un jour de la semaine');
+      return;
+    }
 
     if (formData.heureFin <= formData.heureDebut) {
       setError('L\'heure de fin doit être après l\'heure de début');
@@ -73,11 +97,10 @@ const AdminHoraires = () => {
   };
 
   const formatDate = (dateStr) =>
-    new Date(dateStr).toLocaleDateString('fr-FR', {
+    new Date(`${dateStr}T12:00:00`).toLocaleDateString('fr-FR', {
       weekday: 'long',
-      year: 'numeric',
-      month: 'long',
       day: 'numeric',
+      month: 'long',
     });
 
   if (loading) {
@@ -103,8 +126,9 @@ const AdminHoraires = () => {
       </div>
 
       <p className="horaires-intro">
-        Définissez une date, une plage horaire, la ville et l&apos;adresse de pick-up.
-        Les créneaux sont générés automatiquement pour les clients.
+        Choisissez les jours de la semaine (ex. mercredi et samedi), la plage horaire,
+        la ville et l&apos;adresse de pick-up. Les dates concrètes de la semaine en cours
+        sont calculées automatiquement pour vos clients.
       </p>
 
       {error && <div className="alert alert-error">{error}</div>}
@@ -139,18 +163,6 @@ const AdminHoraires = () => {
                 className="form-input"
               />
             </div>
-            <div className="form-group">
-              <label htmlFor="date">Date *</label>
-              <input
-                id="date"
-                type="date"
-                value={formData.date}
-                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                min={new Date().toISOString().split('T')[0]}
-                required
-                className="form-input"
-              />
-            </div>
           </div>
 
           <div className="form-group">
@@ -164,6 +176,24 @@ const AdminHoraires = () => {
               required
               className="form-input"
             />
+          </div>
+
+          <div className="form-group">
+            <label>Jours de ramassage *</label>
+            <p className="form-help">Les clients verront les prochaines dates correspondantes (cette semaine et les suivantes).</p>
+            <div className="jours-semaine-grid">
+              {JOURS_SEMAINE.map(({ value, label }) => (
+                <button
+                  key={value}
+                  type="button"
+                  className={`jour-btn ${formData.joursSemaine.includes(value) ? 'active' : ''}`}
+                  onClick={() => toggleJour(value)}
+                  aria-pressed={formData.joursSemaine.includes(value)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="form-row form-row-three">
@@ -240,7 +270,10 @@ const AdminHoraires = () => {
             {horaires.map((horaire) => (
               <div key={horaire._id} className="horaire-card">
                 <div className="horaire-header">
-                  <strong>{formatDate(horaire.date)}</strong>
+                  <strong>
+                    {horaire.joursSemaineLabel
+                      || (horaire.date ? formatDate(horaire.date.split('T')[0]) : 'Horaire')}
+                  </strong>
                   <span className={`badge ${horaire.disponible ? 'available' : 'unavailable'}`}>
                     {horaire.disponible ? 'Disponible' : 'Indisponible'}
                   </span>
@@ -254,6 +287,14 @@ const AdminHoraires = () => {
                     Plage : {horaire.heureDebut} – {horaire.heureFin}
                     {horaire.intervalleMinutes ? ` (tous les ${horaire.intervalleMinutes} min)` : ''}
                   </p>
+                )}
+                {horaire.prochainesDates?.length > 0 && (
+                  <div className="horaire-prochaines-dates">
+                    <span className="horaire-prochaines-label">Prochaines dates :</span>
+                    {horaire.prochainesDates.slice(0, 4).map((d) => (
+                      <span key={d} className="date-preview-badge">{formatDate(d)}</span>
+                    ))}
+                  </div>
                 )}
                 <div className="horaire-heures">
                   {horaire.heures.map((heure) => (

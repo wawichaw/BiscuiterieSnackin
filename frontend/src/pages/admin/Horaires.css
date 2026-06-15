@@ -287,6 +287,56 @@
   font-weight: 600;
 }
 
+.horaire-prochaines-dates {
+  margin-bottom: 12px;
+}
+
+.horaire-prochaines-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #555;
+  margin-bottom: 8px;
+}
+
+.date-preview-badge {
+  display: block;
+  font-size: 13px;
+  color: #444;
+  margin-bottom: 4px;
+}
+
+.jours-semaine-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.jour-btn {
+  min-width: 52px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 2px solid rgba(160, 22, 43, 0.25);
+  background: white;
+  color: var(--cherry);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.jour-btn:hover {
+  border-color: var(--cherry);
+  background: #fff5f7;
+}
+
+.jour-btn.active {
+  background: var(--cherry);
+  color: white;
+  border-color: var(--cherry);
+  box-shadow: 0 2px 8px rgba(160, 22, 43, 0.25);
+}
+
+
 @media (max-width: 768px) {
   .admin-horaires-page .admin-header {
     flex-direction: column;
