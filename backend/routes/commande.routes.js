@@ -2,8 +2,18 @@ import express from 'express';
 import { body, validationResult } from 'express-validator';
 import Commande from '../models/Commande.model.js';
 import { authenticate, isAdmin } from '../middleware/auth.middleware.js';
+import { getInfosRamassagePourEmail } from '../services/ramassage.service.js';
 
 const router = express.Router();
+
+const extrasEmailRamassage = async (commande) => {
+  if (commande.typeReception !== 'ramassage') return {};
+  const infos = await getInfosRamassagePourEmail(commande.pointRamassage);
+  return {
+    villeRamassage: infos.ville,
+    adresseRamassage: infos.adresse || undefined,
+  };
+};
 
 // Middleware optionnel pour l'authentification (ne bloque pas si pas de token)
 const optionalAuth = async (req, res, next) => {
@@ -109,7 +119,7 @@ router.post('/', optionalAuth, [
   body('boites.*.taille').isIn([4, 6, 12]).withMessage('La taille doit être 4, 6 ou 12'),
   body('boites.*.saveurs').isArray().withMessage('Les saveurs doivent être un tableau'),
   body('typeReception').isIn(['ramassage', 'livraison']).withMessage('Type de réception invalide'),
-  body('pointRamassage').if((value, { req }) => req.body.typeReception === 'ramassage').isIn(['laval', 'montreal', 'repentigny']).withMessage('Point de ramassage invalide'),
+  body('pointRamassage').if((value, { req }) => req.body.typeReception === 'ramassage').trim().notEmpty().withMessage('Point de ramassage requis'),
   body('dateRamassage').if((value, { req }) => req.body.typeReception === 'ramassage').notEmpty().withMessage('La date de ramassage est requise'),
   body('heureRamassage').if((value, { req }) => req.body.typeReception === 'ramassage').notEmpty().withMessage('L\'heure de ramassage est requise'),
   body('villeLivraison').if((value, { req }) => req.body.typeReception === 'livraison').isIn(['montreal', 'laval', 'repentigny', 'assomption', 'terrebonne']).withMessage('Ville de livraison invalide'),
@@ -238,6 +248,7 @@ router.post('/', optionalAuth, [
           total: commande.total,
           typeReception: commande.typeReception,
           pointRamassage: commande.pointRamassage,
+          ...(await extrasEmailRamassage(commande)),
           dateRamassage: commande.dateRamassage,
           heureRamassage: commande.heureRamassage,
           villeLivraison: commande.villeLivraison,
@@ -319,6 +330,7 @@ router.put('/:id', authenticate, isAdmin, async (req, res) => {
             total: commande.total,
             typeReception: commande.typeReception,
             pointRamassage: commande.pointRamassage,
+            ...(await extrasEmailRamassage(commande)),
             dateRamassage: commande.dateRamassage,
             heureRamassage: commande.heureRamassage,
             villeLivraison: commande.villeLivraison,

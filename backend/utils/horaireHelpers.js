@@ -120,3 +120,27 @@ export function horaireCorrespondADate(horaire, dateIso) {
   }
   return false;
 }
+
+const normalizeVille = (ville) =>
+  String(ville || '')
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase()
+    .trim();
+
+/** Repentigny : adresse réservée au courriel de confirmation. */
+export function isAdressePriveeClient({ ville, pointRamassage } = {}) {
+  if (normalizeVille(ville) === 'repentigny') return true;
+  const slug = String(pointRamassage || '').toLowerCase();
+  return slug === 'repentigny' || slug.startsWith('repentigny-');
+}
+
+export function sanitizeLieuPourClient(lieu) {
+  const adressePrivee = isAdressePriveeClient(lieu);
+  return {
+    pointRamassage: lieu.pointRamassage,
+    ville: lieu.ville,
+    ...(adressePrivee ? {} : { adresse: lieu.adresse || '' }),
+    adresseParCourriel: adressePrivee,
+  };
+}

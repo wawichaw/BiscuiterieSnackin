@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
+import {
+  isAdresseParCourriel,
+  libellePointAvecAdresse,
+  MESSAGE_ADRESSE_PAR_COURRIEL,
+} from '../utils/ramassage';
 import { useAuth } from '../contexts/AuthContext';
 import StripeCheckout from '../components/StripeCheckout';
 import './Commander.css';
@@ -199,10 +204,12 @@ const Commander = () => {
 
   const libellePointRamassage = (slug) => {
     const lieu = lieuxRamassage.find((l) => l.pointRamassage === slug);
-    if (lieu) {
-      return lieu.adresse ? `${lieu.ville} — ${lieu.adresse}` : lieu.ville;
-    }
-    return slug ? slug.charAt(0).toUpperCase() + slug.slice(1) : '';
+    return libellePointAvecAdresse(lieu, slug);
+  };
+
+  const lieuAdresseParCourriel = (slug) => {
+    const lieu = lieuxRamassage.find((l) => l.pointRamassage === slug);
+    return isAdresseParCourriel(lieu) || isAdresseParCourriel({ pointRamassage: slug });
   };
 
   // Charger les points de ramassage configurés par l'admin
@@ -835,12 +842,17 @@ const Commander = () => {
                     <option value="">Sélectionnez un lieu</option>
                     {lieuxRamassage.map((lieu) => (
                       <option key={lieu.pointRamassage} value={lieu.pointRamassage}>
-                        {lieu.ville}{lieu.adresse ? ` — ${lieu.adresse}` : ''}
+                        {libellePointAvecAdresse(lieu, lieu.pointRamassage)}
                       </option>
                     ))}
                   </select>
                 )}
-                {lieuRamassageSelectionne?.adresse && (
+                {lieuRamassageSelectionne && isAdresseParCourriel(lieuRamassageSelectionne) && (
+                  <p className="pickup-address-hint pickup-address-private">
+                    📧 {MESSAGE_ADRESSE_PAR_COURRIEL}
+                  </p>
+                )}
+                {lieuRamassageSelectionne?.adresse && !isAdresseParCourriel(lieuRamassageSelectionne) && (
                   <p className="pickup-address-hint">
                     📍 {lieuRamassageSelectionne.adresse}, {lieuRamassageSelectionne.ville}
                   </p>
@@ -1158,6 +1170,12 @@ const Commander = () => {
                   <span>Point de ramassage:</span>
                   <strong>{libellePointRamassage(pointRamassage)}</strong>
                 </div>
+                {lieuAdresseParCourriel(pointRamassage) && (
+                  <div className="resume-item resume-note">
+                    <span>Adresse:</span>
+                    <strong>{MESSAGE_ADRESSE_PAR_COURRIEL}</strong>
+                  </div>
+                )}
                 <div className="resume-item">
                   <span>Date et heure:</span>
                   <strong>{formatLocalDateStr(dateRamassage)} à {heureRamassage}</strong>
@@ -1202,7 +1220,11 @@ const Commander = () => {
             <p className="commande-numero">
               Numéro de commande: <strong>#{commandeCreee.numero ? commandeCreee.numero.slice(-6) : commandeCreee._id?.slice(-6) || 'N/A'}</strong>
             </p>
-            <p>Un email de confirmation a été envoyé à {user ? user.email : visiteurEmail}</p>
+            <p>Un email de confirmation a été envoyé à {user ? user.email : visiteurEmail}
+              {commandeCreee.typeReception === 'ramassage' && lieuAdresseParCourriel(commandeCreee.pointRamassage)
+                ? ' avec l\'adresse de ramassage.'
+                : '.'}
+            </p>
           </div>
 
           <div className="commande-resume">
@@ -1217,6 +1239,12 @@ const Commander = () => {
                   <span>Point de ramassage:</span>
                   <strong>{libellePointRamassage(commandeCreee.pointRamassage)}</strong>
                 </div>
+                {lieuAdresseParCourriel(commandeCreee.pointRamassage) && (
+                  <div className="resume-item resume-note">
+                    <span>Adresse:</span>
+                    <strong>{MESSAGE_ADRESSE_PAR_COURRIEL}</strong>
+                  </div>
+                )}
                 <div className="resume-item">
                   <span>Date et heure:</span>
                   <strong>{commandeCreee.dateRamassage ? `${new Date(commandeCreee.dateRamassage).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })} à ${commandeCreee.heureRamassage}` : 'N/A'}</strong>

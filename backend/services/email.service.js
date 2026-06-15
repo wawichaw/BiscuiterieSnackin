@@ -79,6 +79,8 @@ const sendEmail = async (to, subject, text, html) => {
  * @param {Number} options.total - Total de la commande
  * @param {String} options.typeReception - Type de réception ('ramassage' ou 'livraison')
  * @param {String} options.pointRamassage - Point de ramassage (si ramassage)
+ * @param {String} options.villeRamassage - Ville du point de ramassage
+ * @param {String} options.adresseRamassage - Adresse complète (envoyée par courriel, ex. Repentigny)
  * @param {Date} options.dateRamassage - Date de ramassage (si ramassage)
  * @param {String} options.heureRamassage - Heure de ramassage (si ramassage)
  * @param {String} options.villeLivraison - Ville de livraison (si livraison)
@@ -106,6 +108,8 @@ export const envoyerEmailConfirmation = async (options) => {
       total, 
       typeReception,
       pointRamassage, 
+      villeRamassage,
+      adresseRamassage,
       dateRamassage, 
       heureRamassage,
       villeLivraison,
@@ -125,7 +129,12 @@ export const envoyerEmailConfirmation = async (options) => {
         year: 'numeric',
       });
       heureFormatee = heureRamassage;
-      lieuInfo = `<p><strong>Point de ramassage :</strong> ${pointRamassage.charAt(0).toUpperCase() + pointRamassage.slice(1)}</p>`;
+      const villeLabel = villeRamassage
+        || (pointRamassage ? pointRamassage.charAt(0).toUpperCase() + pointRamassage.slice(1) : '');
+      lieuInfo = `<p><strong>Point de ramassage :</strong> ${villeLabel}</p>`;
+      if (adresseRamassage) {
+        lieuInfo += `<p><strong>Adresse :</strong> ${adresseRamassage}, ${villeLabel}</p>`;
+      }
     } else {
       dateFormatee = new Date(dateLivraison).toLocaleDateString('fr-FR', {
         weekday: 'long',
@@ -220,7 +229,7 @@ ${boites.map((boite, index) => {
 
 Total : ${total.toFixed(2)} $
 ${typeReception === 'ramassage' 
-  ? `Point de ramassage : ${pointRamassage.charAt(0).toUpperCase() + pointRamassage.slice(1)}`
+  ? `Point de ramassage : ${villeRamassage || (pointRamassage ? pointRamassage.charAt(0).toUpperCase() + pointRamassage.slice(1) : '')}${adresseRamassage ? `\nAdresse : ${adresseRamassage}, ${villeRamassage || ''}` : ''}`
   : `Ville : ${villeLivraison.charAt(0).toUpperCase() + villeLivraison.slice(1)}\nAdresse : ${adresseLivraison.rue}, ${adresseLivraison.codePostal}${adresseLivraison.instructions ? `\nInstructions : ${adresseLivraison.instructions}` : ''}`
 }
 Date et heure : ${dateFormatee} à ${heureFormatee}

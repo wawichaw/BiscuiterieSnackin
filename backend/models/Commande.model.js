@@ -72,7 +72,6 @@ const commandeSchema = new mongoose.Schema({
   // Pour le ramassage
   pointRamassage: {
     type: String,
-    enum: ['laval', 'montreal', 'repentigny'],
     required: function() {
       return this.typeReception === 'ramassage';
     },

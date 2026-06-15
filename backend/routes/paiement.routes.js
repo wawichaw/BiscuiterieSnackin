@@ -1,6 +1,7 @@
 import express from 'express';
 import Stripe from 'stripe';
 import Commande from '../models/Commande.model.js';
+import { getInfosRamassagePourEmail } from '../services/ramassage.service.js';
 // Middleware optionnel pour l'authentification
 const optionalAuth = async (req, res, next) => {
   try {
@@ -120,6 +121,13 @@ router.post('/confirm', optionalAuth, async (req, res) => {
           const email = commande.user ? commande.user.email : commande.visiteurEmail;
           const nom = commande.user ? commande.user.name : commande.visiteurNom;
           
+          const ramassageExtras = commande.typeReception === 'ramassage'
+            ? await getInfosRamassagePourEmail(commande.pointRamassage).then((infos) => ({
+                villeRamassage: infos.ville,
+                adresseRamassage: infos.adresse || undefined,
+              }))
+            : {};
+
           await envoyerEmailConfirmation({
             to: email,
             nomClient: nom,
@@ -127,6 +135,7 @@ router.post('/confirm', optionalAuth, async (req, res) => {
             total: commande.total,
             typeReception: commande.typeReception,
             pointRamassage: commande.pointRamassage,
+            ...ramassageExtras,
             dateRamassage: commande.dateRamassage,
             heureRamassage: commande.heureRamassage,
             villeLivraison: commande.villeLivraison,

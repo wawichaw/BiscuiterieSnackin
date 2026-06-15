@@ -594,6 +594,18 @@
   font-weight: 600;
 }
 
+.pickup-address-private {
+  color: #555;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.resume-item.resume-note strong {
+  font-weight: 500;
+  color: #555;
+  font-size: 14px;
+}
+
 .dates-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));

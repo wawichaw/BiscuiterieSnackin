@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
+import { isSlugRepentigny, libelleVilleDepuisSlug, MESSAGE_ADRESSE_PAR_COURRIEL } from '../utils/ramassage';
 import './MesCommandes.css';
 
 const MesCommandes = () => {
@@ -66,8 +67,13 @@ const MesCommandes = () => {
                   {commande.typeReception === 'ramassage' ? (
                     <>
                       <div className="detail-item">
-                        <strong>📍 Point de ramassage:</strong> {commande.pointRamassage?.charAt(0).toUpperCase() + commande.pointRamassage?.slice(1) || 'N/A'}
+                        <strong>📍 Point de ramassage:</strong> {libelleVilleDepuisSlug(commande.pointRamassage)}
                       </div>
+                      {isSlugRepentigny(commande.pointRamassage) && (
+                        <div className="detail-item pickup-info">
+                          <strong>📧 Adresse:</strong> {MESSAGE_ADRESSE_PAR_COURRIEL}
+                        </div>
+                      )}
                       <div className="detail-item pickup-info">
                         <strong>🕐 Ramassage:</strong> {dateRamassage} à {commande.heureRamassage || 'N/A'}
                       </div>

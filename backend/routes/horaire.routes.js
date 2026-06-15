@@ -2,7 +2,7 @@ import express from 'express';
 import { body, validationResult } from 'express-validator';
 import HoraireRamassage from '../models/HoraireRamassage.model.js';
 import { authenticate, isAdmin } from '../middleware/auth.middleware.js';
-import { buildPointRamassage, genererHeures, HEURE_REGEX, collectDatesFromHoraire, horaireCorrespondADate, formatJoursSemaine } from '../utils/horaireHelpers.js';
+import { buildPointRamassage, genererHeures, HEURE_REGEX, collectDatesFromHoraire, horaireCorrespondADate, formatJoursSemaine, sanitizeLieuPourClient } from '../utils/horaireHelpers.js';
 
 const router = express.Router();
 
@@ -44,11 +44,11 @@ router.get('/lieux', async (req, res) => {
     horaires.filter(horaireEstActif).forEach((h) => {
       const enriched = enrichHoraire(h);
       if (!lieuxMap.has(enriched.pointRamassage)) {
-        lieuxMap.set(enriched.pointRamassage, {
+        lieuxMap.set(enriched.pointRamassage, sanitizeLieuPourClient({
           pointRamassage: enriched.pointRamassage,
           ville: enriched.ville,
           adresse: enriched.adresse,
-        });
+        }));
       }
     });
 
