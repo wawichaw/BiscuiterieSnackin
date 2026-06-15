@@ -118,7 +118,7 @@ router.post('/', optionalAuth, [
   body('boites').isArray({ min: 1 }).withMessage('Au moins une boîte est requise'),
   body('boites.*.taille').isIn([4, 6, 12]).withMessage('La taille doit être 4, 6 ou 12'),
   body('boites.*.saveurs').isArray().withMessage('Les saveurs doivent être un tableau'),
-  body('typeReception').isIn(['ramassage', 'livraison']).withMessage('Type de réception invalide'),
+  body('typeReception').equals('ramassage').withMessage('Seul le ramassage est disponible'),
   body('pointRamassage').if((value, { req }) => req.body.typeReception === 'ramassage').trim().notEmpty().withMessage('Point de ramassage requis'),
   body('dateRamassage').if((value, { req }) => req.body.typeReception === 'ramassage').notEmpty().withMessage('La date de ramassage est requise'),
   body('heureRamassage').if((value, { req }) => req.body.typeReception === 'ramassage').notEmpty().withMessage('L\'heure de ramassage est requise'),

@@ -12,31 +12,21 @@ import './Commander.css';
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
+const TYPE_RECEPTION = 'ramassage';
+
 const Commander = () => {
   const { user } = useAuth();
   const [biscuits, setBiscuits] = useState([]);
   const [boites, setBoites] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [currentStep, setCurrentStep] = useState(1); // 1: boîtes, 2: réception, 3: paiement/infos, 4: confirmation
-  const [typeReception, setTypeReception] = useState(''); // 'ramassage' ou 'livraison'
+  const [currentStep, setCurrentStep] = useState(1); // 1: boîtes, 2: ramassage, 3: paiement/infos, 4: confirmation
   const [pointRamassage, setPointRamassage] = useState('');
   const [lieuxRamassage, setLieuxRamassage] = useState([]);
   const [dateRamassage, setDateRamassage] = useState('');
   const [heureRamassage, setHeureRamassage] = useState('');
-  // Pour la livraison
-  const [villeLivraison, setVilleLivraison] = useState('');
-  const [adresseLivraison, setAdresseLivraison] = useState({
-    rue: '',
-    codePostal: '',
-    instructions: '',
-  });
-  const [dateLivraison, setDateLivraison] = useState('');
-  const [heureLivraison, setHeureLivraison] = useState('');
   const [methodePaiement, setMethodePaiement] = useState('');
   const [heuresDisponibles, setHeuresDisponibles] = useState([]);
   const [datesDisponibles, setDatesDisponibles] = useState([]);
-  const [datesLivraisonDisponibles, setDatesLivraisonDisponibles] = useState([]);
-  const [fraisLivraison, setFraisLivraison] = useState(0);
   const [error, setError] = useState('');
   // Informations visiteur
   const [visiteurNom, setVisiteurNom] = useState('');
@@ -59,7 +49,6 @@ const Commander = () => {
 
   useEffect(() => {
     let cancelled = false;
-    genererDatesLivraison();
 
     // Afficher instantanément depuis le cache persistant si disponible.
     try {
@@ -148,45 +137,6 @@ const Commander = () => {
     return () => { cancelled = true; };
   }, []);
 
-  // Générer les jeudis disponibles pour la livraison (prochains 8 jeudis)
-  const genererDatesLivraison = () => {
-    const dates = [];
-    const aujourdhui = new Date();
-    aujourdhui.setHours(0, 0, 0, 0);
-    
-    // Trouver le prochain jeudi
-    let prochainJeudi = new Date(aujourdhui);
-    const jourActuel = aujourdhui.getDay(); // 0 = dimanche, 4 = jeudi
-    
-    // Si on est avant jeudi, aller au jeudi de cette semaine
-    // Si on est jeudi ou après, aller au jeudi de la semaine prochaine
-    if (jourActuel < 4) {
-      prochainJeudi.setDate(aujourdhui.getDate() + (4 - jourActuel));
-    } else if (jourActuel === 4) {
-      // Si c'est jeudi, vérifier l'heure - si avant 18h, on peut livrer aujourd'hui
-      const maintenant = new Date();
-      if (maintenant.getHours() < 18) {
-        prochainJeudi = aujourdhui;
-      } else {
-        prochainJeudi.setDate(aujourdhui.getDate() + 7);
-      }
-    } else {
-      prochainJeudi.setDate(aujourdhui.getDate() + (7 - jourActuel + 4));
-    }
-    
-    // Générer 8 jeudis consécutifs (utiliser la date locale pour éviter mercredi au lieu de jeudi en UTC)
-    for (let i = 0; i < 8; i++) {
-      const jeudi = new Date(prochainJeudi);
-      jeudi.setDate(prochainJeudi.getDate() + (i * 7));
-      const y = jeudi.getFullYear();
-      const m = String(jeudi.getMonth() + 1).padStart(2, '0');
-      const d = String(jeudi.getDate()).padStart(2, '0');
-      dates.push(`${y}-${m}-${d}`);
-    }
-    
-    setDatesLivraisonDisponibles(dates);
-  };
-
   // Parser "YYYY-MM-DD" en date locale (évite d'afficher mercredi au lieu de jeudi)
   const parseLocalDate = (dateStr) => {
     if (!dateStr || typeof dateStr !== 'string') return null;
@@ -214,7 +164,7 @@ const Commander = () => {
 
   // Charger les points de ramassage configurés par l'admin
   useEffect(() => {
-    if (typeReception !== 'ramassage') return;
+    if (currentStep !== 2) return;
     const loadLieux = async () => {
       try {
         const response = await api.get('/horaires/lieux');
@@ -225,36 +175,22 @@ const Commander = () => {
       }
     };
     loadLieux();
-  }, [typeReception, currentStep]);
+  }, [currentStep]);
 
-  // Charger les dates disponibles quand le lieu change (pour ramassage)
+  // Charger les dates disponibles quand le lieu change
   useEffect(() => {
-    if (typeReception === 'ramassage' && pointRamassage) {
+    if (pointRamassage) {
       fetchDatesDisponibles();
-      setDateRamassage(''); // Réinitialiser la date
-      setHeureRamassage(''); // Réinitialiser l'heure
+      setDateRamassage('');
+      setHeureRamassage('');
       setHeuresDisponibles([]);
-    } else if (typeReception === 'ramassage') {
+    } else {
       setDatesDisponibles([]);
       setDateRamassage('');
       setHeureRamassage('');
       setHeuresDisponibles([]);
     }
-  }, [pointRamassage, typeReception]);
-
-  // Calculer les frais de livraison quand la date change (toujours 5$ car jeudi après 18h)
-  useEffect(() => {
-    if (typeReception === 'livraison' && dateLivraison) {
-      // Définir l'heure par défaut à 18:00 si non définie
-      if (!heureLivraison) {
-        setHeureLivraison('18:00');
-      }
-      // Toutes les livraisons sont jeudi après 18h, donc toujours 5$
-      setFraisLivraison(5);
-    } else {
-      setFraisLivraison(0);
-    }
-  }, [typeReception, dateLivraison]);
+  }, [pointRamassage]);
 
   // Charger les horaires disponibles quand la date change
   useEffect(() => {
@@ -392,10 +328,8 @@ const Commander = () => {
     return boite.saveurs.reduce((total, s) => total + s.quantite, 0);
   };
 
-  const calculerTotal = () => {
-    const totalBoites = boites.reduce((total, boite) => total + boite.prix, 0);
-    return totalBoites + fraisLivraison;
-  };
+  const calculerTotal = () =>
+    boites.reduce((total, boite) => total + boite.prix, 0);
 
   const validerBoites = () => {
     if (boites.length === 0) {
@@ -416,22 +350,8 @@ const Commander = () => {
   };
 
   const validerReception = () => {
-    if (typeReception === 'ramassage') {
-      if (!pointRamassage || !dateRamassage || !heureRamassage) {
-        setError('Veuillez remplir tous les champs de ramassage');
-        return;
-      }
-    } else if (typeReception === 'livraison') {
-      if (!villeLivraison || !adresseLivraison.rue || !adresseLivraison.codePostal || !dateLivraison) {
-        setError('Veuillez remplir tous les champs de livraison');
-        return;
-      }
-      // Définir une heure par défaut si non spécifiée (18:00)
-      if (!heureLivraison) {
-        setHeureLivraison('18:00');
-      }
-    } else {
-      setError('Veuillez choisir un type de réception');
+    if (!pointRamassage || !dateRamassage || !heureRamassage) {
+      setError('Veuillez remplir tous les champs de ramassage');
       return;
     }
     setError('');
@@ -511,26 +431,15 @@ const Commander = () => {
 
       const commandeData = {
         boites: boitesFormatees,
-        typeReception: typeReception,
+        typeReception: TYPE_RECEPTION,
         methodePaiement: methodePaiement,
         total: calculerTotal(),
         paiementConfirme: methodePaiement === 'sur_place' ? false : (stripePaymentIntentId ? true : false),
         stripePaymentIntentId: stripePaymentIntentId || null,
+        pointRamassage,
+        dateRamassage: dateComplete.toISOString(),
+        heureRamassage,
       };
-
-      // Ajouter les données selon le type de réception
-      if (typeReception === 'ramassage') {
-        const dateComplete = new Date(`${dateRamassage}T${heureRamassage}:00`);
-        commandeData.pointRamassage = pointRamassage;
-        commandeData.dateRamassage = dateComplete.toISOString();
-        commandeData.heureRamassage = heureRamassage;
-      } else {
-        const dateCompleteLivraison = new Date(`${dateLivraison}T${heureLivraison}:00`);
-        commandeData.villeLivraison = villeLivraison;
-        commandeData.adresseLivraison = adresseLivraison;
-        commandeData.dateLivraison = dateCompleteLivraison.toISOString();
-        commandeData.heureLivraison = heureLivraison;
-      }
 
       // Ajouter les informations visiteur si pas connecté
       if (!user) {
@@ -772,218 +681,64 @@ const Commander = () => {
         </div>
       )}
 
-      {/* Étape 2: Réception (Ramassage ou Livraison) */}
+      {/* Étape 2: Ramassage */}
       {currentStep === 2 && (
         <div className="commander-step">
-          <h2>Type de réception</h2>
+          <h2>📍 Ramassage</h2>
+          <p className="step-intro">Récupérez votre commande à un point de ramassage.</p>
 
-          <div className="reception-options">
-            <label className="reception-option">
-              <input
-                type="radio"
-                name="reception"
-                value="ramassage"
-                checked={typeReception === 'ramassage'}
+          <div className="form-group">
+            <label>Point de ramassage *</label>
+            {lieuxRamassage.length === 0 ? (
+              <p className="no-dates">
+                Aucun point de ramassage disponible. L&apos;administrateur doit d&apos;abord ajouter des horaires.
+              </p>
+            ) : (
+              <select
+                value={pointRamassage}
                 onChange={(e) => {
-                  setTypeReception(e.target.value);
-                  setPointRamassage('');
-                  setDateRamassage('');
+                  setPointRamassage(e.target.value);
                   setHeureRamassage('');
                 }}
-              />
-              <div className="reception-card">
-                <strong>📍 Ramassage</strong>
-                <p className="desktop-only">Récupérez votre commande à un point de ramassage</p>
-                <p className="mobile-only">Point de ramassage</p>
-              </div>
-            </label>
-
-            <label className="reception-option">
-              <input
-                type="radio"
-                name="reception"
-                value="livraison"
-                checked={typeReception === 'livraison'}
-                onChange={(e) => {
-                  setTypeReception(e.target.value);
-                  setVilleLivraison('');
-                  setAdresseLivraison({ rue: '', codePostal: '', instructions: '' });
-                  setDateLivraison('');
-                  setHeureLivraison('');
-                }}
-              />
-              <div className="reception-card">
-                <strong>🚚 Livraison</strong>
-                <p className="desktop-only">Livraison à domicile (5$ les jeudis après 18h)</p>
-                <p className="mobile-only">Domicile — 5$ (jeudis 18h)</p>
-              </div>
-            </label>
+                required
+                className="form-select"
+              >
+                <option value="">Sélectionnez un lieu</option>
+                {lieuxRamassage.map((lieu) => (
+                  <option key={lieu.pointRamassage} value={lieu.pointRamassage}>
+                    {libellePointAvecAdresse(lieu, lieu.pointRamassage)}
+                  </option>
+                ))}
+              </select>
+            )}
+            {lieuRamassageSelectionne && isAdresseParCourriel(lieuRamassageSelectionne) && (
+              <p className="pickup-address-hint pickup-address-private">
+                📧 {MESSAGE_ADRESSE_PAR_COURRIEL}
+              </p>
+            )}
+            {lieuRamassageSelectionne?.adresse && !isAdresseParCourriel(lieuRamassageSelectionne) && (
+              <p className="pickup-address-hint">
+                📍 {lieuRamassageSelectionne.adresse}, {lieuRamassageSelectionne.ville}
+              </p>
+            )}
           </div>
 
-          {/* Formulaire Ramassage */}
-          {typeReception === 'ramassage' && (
+          {pointRamassage && (
             <>
               <div className="form-group">
-                <label>Point de ramassage *</label>
-                {lieuxRamassage.length === 0 ? (
-                  <p className="no-dates">
-                    Aucun point de ramassage disponible. L&apos;administrateur doit d&apos;abord ajouter des horaires.
-                  </p>
-                ) : (
-                  <select
-                    value={pointRamassage}
-                    onChange={(e) => {
-                      setPointRamassage(e.target.value);
-                      setHeureRamassage('');
-                    }}
-                    required
-                    className="form-select"
-                  >
-                    <option value="">Sélectionnez un lieu</option>
-                    {lieuxRamassage.map((lieu) => (
-                      <option key={lieu.pointRamassage} value={lieu.pointRamassage}>
-                        {libellePointAvecAdresse(lieu, lieu.pointRamassage)}
-                      </option>
-                    ))}
-                  </select>
-                )}
-                {lieuRamassageSelectionne && isAdresseParCourriel(lieuRamassageSelectionne) && (
-                  <p className="pickup-address-hint pickup-address-private">
-                    📧 {MESSAGE_ADRESSE_PAR_COURRIEL}
-                  </p>
-                )}
-                {lieuRamassageSelectionne?.adresse && !isAdresseParCourriel(lieuRamassageSelectionne) && (
-                  <p className="pickup-address-hint">
-                    📍 {lieuRamassageSelectionne.adresse}, {lieuRamassageSelectionne.ville}
-                  </p>
-                )}
-              </div>
-
-              {pointRamassage && (
-                <>
-                  <div className="form-group">
-                    <label>Date de ramassage *</label>
-                    {datesDisponibles.length === 0 ? (
-                      <div className="no-dates">
-                        <p>Aucune date disponible pour ce lieu. Veuillez choisir un autre lieu.</p>
-                      </div>
-                    ) : (
-                      <div className="dates-list">
-                        {datesDisponibles.map(date => (
-                          <button
-                            key={date}
-                            type="button"
-                            className={`date-btn ${dateRamassage === date ? 'active' : ''}`}
-                            onClick={() => setDateRamassage(date)}
-                          >
-                            {formatLocalDateStr(date)}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {dateRamassage && (
-                    <div className="form-group">
-                      <label>Heure de ramassage *</label>
-                      {heuresDisponibles.length === 0 ? (
-                        <div className="no-hours">
-                          <p>Aucun horaire disponible pour cette date. Veuillez choisir une autre date.</p>
-                        </div>
-                      ) : (
-                        <select
-                          value={heureRamassage}
-                          onChange={(e) => setHeureRamassage(e.target.value)}
-                          required
-                          className="form-select"
-                        >
-                          <option value="">Sélectionnez une heure</option>
-                          {heuresDisponibles.map(heure => (
-                            <option key={heure} value={heure}>{heure}</option>
-                          ))}
-                        </select>
-                      )}
-                    </div>
-                  )}
-                </>
-              )}
-            </>
-          )}
-
-          {/* Formulaire Livraison */}
-          {typeReception === 'livraison' && (
-            <>
-              <div className="form-group">
-                <label>Ville de livraison *</label>
-                <select
-                  value={villeLivraison}
-                  onChange={(e) => setVilleLivraison(e.target.value)}
-                  required
-                  className="form-select"
-                >
-                  <option value="">Sélectionnez une ville</option>
-                  <option value="montreal">Montréal</option>
-                  <option value="laval">Laval</option>
-                  <option value="repentigny">Repentigny</option>
-                  <option value="assomption">Assomption</option>
-                  <option value="terrebonne">Terrebonne</option>
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label>Adresse complète *</label>
-                <input
-                  type="text"
-                  value={adresseLivraison.rue}
-                  onChange={(e) => setAdresseLivraison({ ...adresseLivraison, rue: e.target.value })}
-                  required
-                  className="form-input"
-                  placeholder="123 rue Principale"
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Code postal *</label>
-                <input
-                  type="text"
-                  value={adresseLivraison.codePostal}
-                  onChange={(e) => setAdresseLivraison({ ...adresseLivraison, codePostal: e.target.value })}
-                  required
-                  className="form-input"
-                  placeholder="H1A 1A1"
-                  pattern="[A-Za-z][0-9][A-Za-z] [0-9][A-Za-z][0-9]"
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Instructions de livraison (optionnel)</label>
-                <textarea
-                  value={adresseLivraison.instructions}
-                  onChange={(e) => setAdresseLivraison({ ...adresseLivraison, instructions: e.target.value })}
-                  className="form-input"
-                  rows="3"
-                  placeholder="Ex: Sonner deux fois, laisser à la porte..."
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Date de livraison souhaitée *</label>
-                <p className="livraison-info">Les livraisons sont disponibles uniquement les jeudis</p>
-                {datesLivraisonDisponibles.length === 0 ? (
+                <label>Date de ramassage *</label>
+                {datesDisponibles.length === 0 ? (
                   <div className="no-dates">
-                    <p>Aucune date de livraison disponible pour le moment.</p>
+                    <p>Aucune date disponible pour ce lieu. Veuillez choisir un autre lieu.</p>
                   </div>
                 ) : (
                   <div className="dates-list">
-                    {datesLivraisonDisponibles.map(date => (
+                    {datesDisponibles.map(date => (
                       <button
                         key={date}
                         type="button"
-                        className={`date-btn ${dateLivraison === date ? 'active' : ''}`}
-                        onClick={() => {
-                          setDateLivraison(date);
-                          setHeureLivraison('18:00'); // Livraison après 18h
-                        }}
+                        className={`date-btn ${dateRamassage === date ? 'active' : ''}`}
+                        onClick={() => setDateRamassage(date)}
                       >
                         {formatLocalDateStr(date)}
                       </button>
@@ -992,10 +747,27 @@ const Commander = () => {
                 )}
               </div>
 
-              {dateLivraison && fraisLivraison > 0 && (
-                <p className="frais-livraison-note">
-                  ⚠️ Frais de livraison de {fraisLivraison.toFixed(2)} $ appliqués (jeudi après 18h)
-                </p>
+              {dateRamassage && (
+                <div className="form-group">
+                  <label>Heure de ramassage *</label>
+                  {heuresDisponibles.length === 0 ? (
+                    <div className="no-hours">
+                      <p>Aucun horaire disponible pour cette date. Veuillez choisir une autre date.</p>
+                    </div>
+                  ) : (
+                    <select
+                      value={heureRamassage}
+                      onChange={(e) => setHeureRamassage(e.target.value)}
+                      required
+                      className="form-select"
+                    >
+                      <option value="">Sélectionnez une heure</option>
+                      {heuresDisponibles.map(heure => (
+                        <option key={heure} value={heure}>{heure}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
               )}
             </>
           )}
@@ -1012,7 +784,6 @@ const Commander = () => {
               type="button"
               onClick={validerReception}
               className="btn btn-primary"
-              disabled={!typeReception}
             >
               Continuer →
             </button>
@@ -1161,48 +932,19 @@ const Commander = () => {
               <strong>{boites.length}</strong>
             </div>
             <div className="resume-item">
-              <span>Type de réception:</span>
-              <strong>{typeReception === 'ramassage' ? '📍 Ramassage' : '🚚 Livraison'}</strong>
+              <span>Point de ramassage:</span>
+              <strong>{libellePointRamassage(pointRamassage)}</strong>
             </div>
-            {typeReception === 'ramassage' ? (
-              <>
-                <div className="resume-item">
-                  <span>Point de ramassage:</span>
-                  <strong>{libellePointRamassage(pointRamassage)}</strong>
-                </div>
-                {lieuAdresseParCourriel(pointRamassage) && (
-                  <div className="resume-item resume-note">
-                    <span>Adresse:</span>
-                    <strong>{MESSAGE_ADRESSE_PAR_COURRIEL}</strong>
-                  </div>
-                )}
-                <div className="resume-item">
-                  <span>Date et heure:</span>
-                  <strong>{formatLocalDateStr(dateRamassage)} à {heureRamassage}</strong>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="resume-item">
-                  <span>Ville:</span>
-                  <strong>{villeLivraison.charAt(0).toUpperCase() + villeLivraison.slice(1)}</strong>
-                </div>
-                <div className="resume-item">
-                  <span>Adresse:</span>
-                  <strong>{adresseLivraison.rue}, {adresseLivraison.codePostal}</strong>
-                </div>
-                <div className="resume-item">
-                  <span>Date et heure:</span>
-                  <strong>{formatLocalDateStr(dateLivraison)} à {heureLivraison}</strong>
-                </div>
-                {fraisLivraison > 0 && (
-                  <div className="resume-item">
-                    <span>Frais de livraison:</span>
-                    <strong>{fraisLivraison.toFixed(2)} $</strong>
-                  </div>
-                )}
-              </>
+            {lieuAdresseParCourriel(pointRamassage) && (
+              <div className="resume-item resume-note">
+                <span>Adresse:</span>
+                <strong>{MESSAGE_ADRESSE_PAR_COURRIEL}</strong>
+              </div>
             )}
+            <div className="resume-item">
+              <span>Date et heure:</span>
+              <strong>{formatLocalDateStr(dateRamassage)} à {heureRamassage}</strong>
+            </div>
             <div className="resume-item resume-total">
               <span>Total:</span>
               <strong>{calculerTotal().toFixed(2)} $</strong>
@@ -1221,7 +963,7 @@ const Commander = () => {
               Numéro de commande: <strong>#{commandeCreee.numero ? commandeCreee.numero.slice(-6) : commandeCreee._id?.slice(-6) || 'N/A'}</strong>
             </p>
             <p>Un email de confirmation a été envoyé à {user ? user.email : visiteurEmail}
-              {commandeCreee.typeReception === 'ramassage' && lieuAdresseParCourriel(commandeCreee.pointRamassage)
+              {lieuAdresseParCourriel(commandeCreee.pointRamassage)
                 ? ' avec l\'adresse de ramassage.'
                 : '.'}
             </p>
@@ -1230,42 +972,19 @@ const Commander = () => {
           <div className="commande-resume">
             <h3>Détails de votre commande</h3>
             <div className="resume-item">
-              <span>Type de réception:</span>
-              <strong>{commandeCreee.typeReception === 'ramassage' ? '📍 Ramassage' : '🚚 Livraison'}</strong>
+              <span>Point de ramassage:</span>
+              <strong>{libellePointRamassage(commandeCreee.pointRamassage)}</strong>
             </div>
-            {commandeCreee.typeReception === 'ramassage' ? (
-              <>
-                <div className="resume-item">
-                  <span>Point de ramassage:</span>
-                  <strong>{libellePointRamassage(commandeCreee.pointRamassage)}</strong>
-                </div>
-                {lieuAdresseParCourriel(commandeCreee.pointRamassage) && (
-                  <div className="resume-item resume-note">
-                    <span>Adresse:</span>
-                    <strong>{MESSAGE_ADRESSE_PAR_COURRIEL}</strong>
-                  </div>
-                )}
-                <div className="resume-item">
-                  <span>Date et heure:</span>
-                  <strong>{commandeCreee.dateRamassage ? `${new Date(commandeCreee.dateRamassage).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })} à ${commandeCreee.heureRamassage}` : 'N/A'}</strong>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="resume-item">
-                  <span>Ville:</span>
-                  <strong>{commandeCreee.villeLivraison ? commandeCreee.villeLivraison.charAt(0).toUpperCase() + commandeCreee.villeLivraison.slice(1) : 'N/A'}</strong>
-                </div>
-                <div className="resume-item">
-                  <span>Adresse:</span>
-                  <strong>{commandeCreee.adresseLivraison ? `${commandeCreee.adresseLivraison.rue}, ${commandeCreee.adresseLivraison.codePostal}` : 'N/A'}</strong>
-                </div>
-                <div className="resume-item">
-                  <span>Date et heure:</span>
-                  <strong>{commandeCreee.dateLivraison ? `${new Date(commandeCreee.dateLivraison).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })} à ${commandeCreee.heureLivraison || '18:00'}` : 'N/A'}</strong>
-                </div>
-              </>
+            {lieuAdresseParCourriel(commandeCreee.pointRamassage) && (
+              <div className="resume-item resume-note">
+                <span>Adresse:</span>
+                <strong>{MESSAGE_ADRESSE_PAR_COURRIEL}</strong>
+              </div>
             )}
+            <div className="resume-item">
+              <span>Date et heure:</span>
+              <strong>{commandeCreee.dateRamassage ? `${new Date(commandeCreee.dateRamassage).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })} à ${commandeCreee.heureRamassage}` : 'N/A'}</strong>
+            </div>
             <div className="resume-item">
               <span>Méthode de paiement:</span>
               <strong>{commandeCreee.methodePaiement === 'en_ligne' ? '💳 Paiement en ligne (Stripe)' : '💵 Paiement sur place'}</strong>
