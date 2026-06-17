@@ -152,7 +152,8 @@ router.post('/', optionalAuth, [
   body('adresseLivraison.codePostal').if((value, { req }) => req.body.typeReception === 'livraison').notEmpty().withMessage('Le code postal est requis'),
   body('dateLivraison').if((value, { req }) => req.body.typeReception === 'livraison').notEmpty().withMessage('La date de livraison est requise'),
   body('heureLivraison').if((value, { req }) => req.body.typeReception === 'livraison').notEmpty().withMessage('L\'heure de livraison est requise'),
-  body('methodePaiement').isIn(['sur_place', 'en_ligne']).withMessage('Méthode de paiement invalide'),
+  body('methodePaiement').equals('en_ligne').withMessage('Seul le paiement en ligne est accepté'),
+  body('stripePaymentIntentId').notEmpty().withMessage('Le paiement Stripe est requis'),
   // Validation conditionnelle pour les visiteurs
   body('visiteurNom').if((value, { req }) => !req.userId).notEmpty().withMessage('Le nom est requis pour les commandes en mode visiteur'),
   body('visiteurEmail').if((value, { req }) => !req.userId).isEmail().withMessage('Un email valide est requis pour les commandes en mode visiteur'),
@@ -218,11 +219,10 @@ router.post('/', optionalAuth, [
       total,
       statut: 'en_attente',
       typeReception: req.body.typeReception,
-      methodePaiement: req.body.methodePaiement,
+      methodePaiement: 'en_ligne',
       fraisLivraison,
-      // Ajouter les champs de paiement si fournis
-      paiementConfirme: req.body.paiementConfirme || false,
-      stripePaymentIntentId: req.body.stripePaymentIntentId || null,
+      paiementConfirme: true,
+      stripePaymentIntentId: req.body.stripePaymentIntentId,
     };
 
     // Ajouter les données selon le type de réception

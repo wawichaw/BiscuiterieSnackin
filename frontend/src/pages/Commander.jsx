@@ -13,6 +13,7 @@ import './Commander.css';
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
 const TYPE_RECEPTION = 'ramassage';
+const METHODE_PAIEMENT = 'en_ligne';
 
 const Commander = () => {
   const { user } = useAuth();
@@ -24,7 +25,6 @@ const Commander = () => {
   const [lieuxRamassage, setLieuxRamassage] = useState([]);
   const [dateRamassage, setDateRamassage] = useState('');
   const [heureRamassage, setHeureRamassage] = useState('');
-  const [methodePaiement, setMethodePaiement] = useState('');
   const [heuresDisponibles, setHeuresDisponibles] = useState([]);
   const [datesDisponibles, setDatesDisponibles] = useState([]);
   const [error, setError] = useState('');
@@ -358,39 +358,25 @@ const Commander = () => {
     setCurrentStep(3);
   };
 
-  const validerInfos = () => {
-    if (!user) {
-      // Vérifier les informations du visiteur
-      if (!visiteurNom || !visiteurEmail) {
-        setError('Veuillez remplir votre nom et votre email');
-        return;
-      }
-      // Validation basique de l'email
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(visiteurEmail)) {
-        setError('Veuillez entrer un email valide');
-        return;
-      }
+  const validerInfosVisiteur = () => {
+    if (user) return true;
+    if (!visiteurNom || !visiteurEmail) {
+      setError('Veuillez remplir votre nom et votre email');
+      return false;
     }
-    if (!methodePaiement) {
-      setError('Veuillez choisir une méthode de paiement');
-      return;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(visiteurEmail)) {
+      setError('Veuillez entrer un email valide');
+      return false;
     }
-    setError('');
-    
-    // Si paiement en ligne, activer le formulaire Stripe si pas déjà activé
-    // Sinon, passer à l'étape 4 (confirmation)
-    if (methodePaiement === 'en_ligne') {
-      if (!paiementEnCours) {
-        setPaiementEnCours(true);
-      }
-      // Ne pas passer à l'étape suivante, rester pour le paiement
-    } else {
-      setCurrentStep(4);
-    }
+    return true;
   };
 
   const handlePaiementSuccess = async (paymentIntent) => {
+    if (!validerInfosVisiteur()) {
+      setPaiementEnCours(true);
+      return;
+    }
     // Créer la commande après paiement réussi
     try {
       setError(''); // Réinitialiser les erreurs
@@ -414,6 +400,11 @@ const Commander = () => {
 
   const handleSubmit = async (e, stripePaymentIntentId = null) => {
     if (e) e.preventDefault();
+
+    if (!stripePaymentIntentId) {
+      setError('Le paiement en ligne est requis pour confirmer la commande');
+      return;
+    }
     
     try {
       // Convertir les boîtes au format attendu par le backend
@@ -432,10 +423,10 @@ const Commander = () => {
       const commandeData = {
         boites: boitesFormatees,
         typeReception: TYPE_RECEPTION,
-        methodePaiement: methodePaiement,
+        methodePaiement: METHODE_PAIEMENT,
         total: calculerTotal(),
-        paiementConfirme: methodePaiement === 'sur_place' ? false : (stripePaymentIntentId ? true : false),
-        stripePaymentIntentId: stripePaymentIntentId || null,
+        paiementConfirme: true,
+        stripePaymentIntentId,
         pointRamassage,
         dateRamassage: dateComplete.toISOString(),
         heureRamassage,
@@ -451,43 +442,24 @@ const Commander = () => {
       }
 
       const response = await api.post('/commandes', commandeData);
-      
-      // Si paiement en ligne réussi, passer à l'étape de confirmation
-      if (methodePaiement === 'en_ligne' && stripePaymentIntentId) {
-        // S'assurer que la commande a bien été créée
-        if (response.data && response.data.data && response.data.data.commande) {
-          setCommandeCreee({
-            numero: response.data.data.commande._id,
-            total: calculerTotal(),
-            _id: response.data.data.commande._id,
-            ...response.data.data.commande,
-          });
-          setPaiementEnCours(false);
-          setError(''); // Réinitialiser les erreurs
-          setCurrentStep(4); // Passer à l'étape de confirmation
-        } else {
-          throw new Error('Réponse invalide du serveur');
-        }
-      } else if (methodePaiement === 'sur_place') {
-        // Afficher la page de confirmation
-        if (response.data && response.data.data && response.data.data.commande) {
-          setCommandeCreee({
-            numero: response.data.data.commande._id,
-            total: calculerTotal(),
-            _id: response.data.data.commande._id,
-            ...response.data.data.commande,
-          });
-          setError(''); // Réinitialiser les erreurs
-          setCurrentStep(4); // Passer à l'étape de confirmation
-        } else {
-          throw new Error('Réponse invalide du serveur');
-        }
+
+      if (response.data?.data?.commande) {
+        setCommandeCreee({
+          numero: response.data.data.commande._id,
+          total: calculerTotal(),
+          _id: response.data.data.commande._id,
+          ...response.data.data.commande,
+        });
+        setPaiementEnCours(false);
+        setError('');
+        setCurrentStep(4);
+      } else {
+        throw new Error('Réponse invalide du serveur');
       }
     } catch (error) {
       console.error('Erreur lors de la commande:', error);
       let errorMessage = error.response?.data?.message || error.response?.data?.errors?.[0]?.msg;
       if (!errorMessage) {
-        // Erreur réseau = backend inaccessible (non démarré ou connexion refusée)
         if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
           errorMessage = 'Serveur inaccessible. Démarrez le backend (dans le dossier backend : npm run dev) puis réessayez.';
         } else {
@@ -495,10 +467,7 @@ const Commander = () => {
         }
       }
       setError(errorMessage);
-      // Si c'est une erreur de validation, réactiver le formulaire de paiement
-      if (error.response?.status === 400 && methodePaiement === 'en_ligne') {
-        setPaiementEnCours(true);
-      }
+      setPaiementEnCours(true);
     }
   };
 
@@ -518,11 +487,11 @@ const Commander = () => {
         </div>
         <div className={`step ${currentStep >= 2 ? 'active' : ''}`}>
           <span className="step-number">2</span>
-          <span className="step-label">Réception</span>
+          <span className="step-label">Ramassage</span>
         </div>
         <div className={`step ${currentStep >= 3 ? 'active' : ''}`}>
           <span className="step-number">3</span>
-          <span className="step-label">{user ? 'Paiement' : 'Informations'}</span>
+          <span className="step-label">Paiement</span>
         </div>
         {currentStep >= 4 && (
           <div className={`step ${currentStep >= 4 ? 'active' : ''}`}>
@@ -791,10 +760,13 @@ const Commander = () => {
         </div>
       )}
 
-      {/* Étape 3: Informations et Paiement */}
+      {/* Étape 3: Paiement en ligne */}
       {currentStep === 3 && (
         <div className="commander-step">
-          <h2>{user ? 'Méthode de paiement' : 'Vos informations et paiement'}</h2>
+          <h2>💳 Paiement en ligne</h2>
+          <p className="step-intro">
+            Toutes les commandes sont payées en ligne de façon sécurisée (Stripe).
+          </p>
 
           {!user && (
             <div className="visiteur-infos">
@@ -835,97 +807,7 @@ const Commander = () => {
             </div>
           )}
 
-          <div className="paiement-options">
-            <label className="paiement-option">
-              <input
-                type="radio"
-                name="paiement"
-                value="sur_place"
-                checked={methodePaiement === 'sur_place'}
-                onChange={(e) => {
-                  setMethodePaiement(e.target.value);
-                  setPaiementEnCours(false);
-                }}
-                required
-              />
-              <div className="paiement-card">
-                <strong>💵 Paiement sur place</strong>
-                <p>Vous payez lors du ramassage</p>
-              </div>
-            </label>
-
-            <label className="paiement-option">
-              <input
-                type="radio"
-                name="paiement"
-                value="en_ligne"
-                checked={methodePaiement === 'en_ligne'}
-                onChange={(e) => {
-                  setMethodePaiement(e.target.value);
-                  setPaiementEnCours(true);
-                }}
-                required
-              />
-              <div className="paiement-card">
-                <strong>💳 Paiement en ligne</strong>
-                <p>Paiement sécurisé par Stripe</p>
-              </div>
-            </label>
-          </div>
-
-          {methodePaiement === 'en_ligne' && (
-            <div className="stripe-payment-section">
-              <h3>💳 Paiement sécurisé</h3>
-              <StripeCheckout
-                montant={calculerTotal()}
-                commandeId={null}
-                onSuccess={handlePaiementSuccess}
-                onError={handlePaiementError}
-              />
-            </div>
-          )}
-
-          {methodePaiement === 'sur_place' && (
-            <div className="step-actions" style={{ marginTop: '20px' }}>
-              <button
-                type="button"
-                onClick={() => setCurrentStep(2)}
-                className="btn btn-secondary"
-              >
-                ← Retour
-              </button>
-              <button 
-                type="button" 
-                onClick={async () => {
-                  // Valider d'abord
-                  if (!user) {
-                    if (!visiteurNom || !visiteurEmail) {
-                      setError('Veuillez remplir votre nom et votre email');
-                      return;
-                    }
-                    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                    if (!emailRegex.test(visiteurEmail)) {
-                      setError('Veuillez entrer un email valide');
-                      return;
-                    }
-                  }
-                  if (!methodePaiement) {
-                    setError('Veuillez choisir une méthode de paiement');
-                    return;
-                  }
-                  setError('');
-                  // Créer la commande directement
-                  await handleSubmit(null, null);
-                }}
-                className="btn btn-primary"
-              >
-                Confirmer la commande
-              </button>
-            </div>
-          )}
-
-          {methodePaiement !== 'en_ligne' && (
-            <div className="commande-resume">
+          <div className="commande-resume">
             <h3>Résumé de votre commande</h3>
             <div className="resume-item">
               <span>Nombre de boîtes:</span>
@@ -946,11 +828,30 @@ const Commander = () => {
               <strong>{formatLocalDateStr(dateRamassage)} à {heureRamassage}</strong>
             </div>
             <div className="resume-item resume-total">
-              <span>Total:</span>
+              <span>Total à payer:</span>
               <strong>{calculerTotal().toFixed(2)} $</strong>
             </div>
           </div>
-          )}
+
+          <div className="stripe-payment-section">
+            <h3>Paiement sécurisé par carte</h3>
+            <StripeCheckout
+              montant={calculerTotal()}
+              commandeId={null}
+              onSuccess={handlePaiementSuccess}
+              onError={handlePaiementError}
+            />
+          </div>
+
+          <div className="step-actions">
+            <button
+              type="button"
+              onClick={() => setCurrentStep(2)}
+              className="btn btn-secondary"
+            >
+              ← Retour
+            </button>
+          </div>
         </div>
       )}
 
@@ -986,15 +887,13 @@ const Commander = () => {
               <strong>{commandeCreee.dateRamassage ? `${new Date(commandeCreee.dateRamassage).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })} à ${commandeCreee.heureRamassage}` : 'N/A'}</strong>
             </div>
             <div className="resume-item">
-              <span>Méthode de paiement:</span>
-              <strong>{commandeCreee.methodePaiement === 'en_ligne' ? '💳 Paiement en ligne (Stripe)' : '💵 Paiement sur place'}</strong>
+              <span>Paiement:</span>
+              <strong>💳 Paiement en ligne (Stripe)</strong>
             </div>
-            {commandeCreee.paiementConfirme && (
-              <div className="resume-item">
-                <span>Statut du paiement:</span>
-                <strong style={{ color: '#28a745' }}>✅ Paiement confirmé</strong>
-              </div>
-            )}
+            <div className="resume-item">
+              <span>Statut du paiement:</span>
+              <strong style={{ color: '#28a745' }}>✅ Paiement confirmé</strong>
+            </div>
             <div className="resume-item resume-total">
               <span>Total:</span>
               <strong>{commandeCreee.total ? commandeCreee.total.toFixed(2) : calculerTotal().toFixed(2)} $</strong>
