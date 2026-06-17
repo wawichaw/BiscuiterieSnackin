@@ -94,28 +94,37 @@ const AdminCommandes = () => {
     return null;
   };
 
-  if (loading && commandes.length === 0) {
-    return <div className="loading">Chargement...</div>;
-  }
-
   return (
     <div className="admin-commandes-page">
-      <h1>📦 Gérer les commandes</h1>
+      <div className="commandes-page-header">
+        <div>
+          <h1>📦 Gérer les commandes</h1>
+          <p className="commandes-page-subtitle">
+            {vue === 'actives'
+              ? 'Commandes en cours — archivez les commandes complétées pour alléger la liste.'
+              : 'Historique des commandes complétées et archivées.'}
+          </p>
+        </div>
+      </div>
 
-      <div className="commandes-tabs">
+      <div className="commandes-tabs" role="tablist" aria-label="Filtrer les commandes">
         <button
           type="button"
+          role="tab"
+          aria-selected={vue === 'actives'}
           className={`commandes-tab ${vue === 'actives' ? 'active' : ''}`}
           onClick={() => setVue('actives')}
         >
-          Suivi actif
+          📋 Suivi actif
         </button>
         <button
           type="button"
+          role="tab"
+          aria-selected={vue === 'archivees'}
           className={`commandes-tab ${vue === 'archivees' ? 'active' : ''}`}
           onClick={() => setVue('archivees')}
         >
-          Archivées
+          📁 Archivées
         </button>
       </div>
 

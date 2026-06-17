@@ -5,9 +5,64 @@
 }
 
 .admin-commandes-page h1 {
-  font-size: 36px;
+  font-size: clamp(1.5rem, 4vw, 2.25rem);
   color: var(--cherry);
-  margin-bottom: 30px;
+  margin: 0 0 8px;
+}
+
+.commandes-page-header {
+  margin-bottom: 20px;
+}
+
+.commandes-page-subtitle {
+  margin: 0;
+  color: #555;
+  font-size: 15px;
+  max-width: 640px;
+  line-height: 1.5;
+}
+
+.commandes-tabs {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  padding: 16px;
+  background: white;
+  border-radius: 16px;
+  border: 2px solid rgba(160, 22, 43, 0.12);
+  box-shadow: 0 4px 16px rgba(160, 22, 43, 0.08);
+}
+
+.admin-commandes-page .commandes-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  min-width: 160px;
+  padding: 12px 24px;
+  border-radius: 12px;
+  border: 2px solid rgba(160, 22, 43, 0.3);
+  background: #fff;
+  color: var(--cherry);
+  font-weight: 700;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.admin-commandes-page .commandes-tab:hover {
+  border-color: var(--cherry);
+  background: #fff5f7;
+  transform: translateY(-1px);
+}
+
+.admin-commandes-page .commandes-tab.active {
+  background: var(--cherry);
+  color: #fff;
+  border-color: var(--cherry);
+  box-shadow: 0 4px 14px rgba(160, 22, 43, 0.35);
 }
 
 .message {
@@ -27,35 +82,6 @@
   background: #f8d7da;
   color: #721c24;
   border: 1px solid #f5c6cb;
-}
-
-.commandes-tabs {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 24px;
-  flex-wrap: wrap;
-}
-
-.commandes-tab {
-  padding: 10px 20px;
-  border-radius: 999px;
-  border: 2px solid rgba(160, 22, 43, 0.25);
-  background: white;
-  color: var(--cherry);
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.commandes-tab:hover {
-  border-color: var(--cherry);
-  background: #fff5f7;
-}
-
-.commandes-tab.active {
-  background: var(--cherry);
-  color: white;
-  border-color: var(--cherry);
 }
 
 .commande-date-archive {
@@ -266,7 +292,8 @@
     grid-template-columns: 1fr;
   }
 
-  .btn-statut {
-    width: 100%;
+  .admin-commandes-page .commandes-tab {
+    flex: 1;
+    min-width: 0;
   }
 }
