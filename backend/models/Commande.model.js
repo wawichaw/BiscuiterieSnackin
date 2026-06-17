@@ -144,6 +144,14 @@ const commandeSchema = new mongoose.Schema({
     type: String,
     default: null,
   },
+  archivee: {
+    type: Boolean,
+    default: false,
+  },
+  archiveeLe: {
+    type: Date,
+    default: null,
+  },
 }, {
   timestamps: true,
 });

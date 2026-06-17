@@ -56,10 +56,17 @@ router.get('/', authenticate, async (req, res) => {
     const isAdmin = user && user.isAdmin;
 
     let commandes;
-    
+    const archiveesParam = req.query.archivees;
+
     if (isAdmin) {
-      // Admin : plus récentes en premier
-      commandes = await Commande.find()
+      const filtre = {};
+      if (archiveesParam === 'true') {
+        filtre.archivee = true;
+      } else if (archiveesParam !== 'all') {
+        filtre.archivee = { $ne: true };
+      }
+
+      commandes = await Commande.find(filtre)
         .sort({ createdAt: -1 })
         .populate('user', 'name email')
         .populate('boites.saveurs.biscuit');
@@ -314,10 +321,31 @@ router.put('/:id', authenticate, isAdmin, async (req, res) => {
       });
     }
 
-    // Mettre à jour la commande
+    const updates = {};
+    if (req.body.statut !== undefined) {
+      updates.statut = req.body.statut;
+    }
+    if (req.body.archivee !== undefined) {
+      if (req.body.archivee === true && ancienneCommande.statut !== 'completee') {
+        return res.status(400).json({
+          success: false,
+          message: 'Seules les commandes complétées peuvent être archivées',
+        });
+      }
+      updates.archivee = Boolean(req.body.archivee);
+      updates.archiveeLe = req.body.archivee ? new Date() : null;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Aucune modification valide',
+      });
+    }
+
     const commande = await Commande.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      updates,
       { new: true, runValidators: true }
     ).populate('user', 'name email').populate('boites.saveurs.biscuit');
 

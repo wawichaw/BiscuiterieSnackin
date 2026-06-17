@@ -29,6 +29,47 @@
   border: 1px solid #f5c6cb;
 }
 
+.commandes-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.commandes-tab {
+  padding: 10px 20px;
+  border-radius: 999px;
+  border: 2px solid rgba(160, 22, 43, 0.25);
+  background: white;
+  color: var(--cherry);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.commandes-tab:hover {
+  border-color: var(--cherry);
+  background: #fff5f7;
+}
+
+.commandes-tab.active {
+  background: var(--cherry);
+  color: white;
+  border-color: var(--cherry);
+}
+
+.commande-date-archive {
+  margin: 4px 0 0;
+  color: #777;
+  font-size: 13px;
+}
+
+.commande-card.commande-archivee {
+  opacity: 0.92;
+  border-color: rgba(160, 22, 43, 0.08);
+  background: #fafafa;
+}
+
 .commandes-list {
   display: grid;
   gap: 20px;
@@ -153,6 +194,9 @@
 .commande-actions {
   padding-top: 20px;
   border-top: 2px solid #eee;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
 .btn-statut {
@@ -191,6 +235,25 @@
 
 .btn-completee:hover:not(:disabled) {
   background: #0f3f18;
+}
+
+.btn-archiver {
+  background: #6c757d;
+  color: white;
+}
+
+.btn-archiver:hover:not(:disabled) {
+  background: #5a6268;
+}
+
+.btn-restaurer {
+  background: white;
+  color: var(--cherry);
+  border: 2px solid var(--cherry);
+}
+
+.btn-restaurer:hover:not(:disabled) {
+  background: #fff5f7;
 }
 
 @media (max-width: 768px) {
