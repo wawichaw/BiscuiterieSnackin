@@ -1,3 +1,25 @@
+.stripe-express-checkout {
+  margin-bottom: 16px;
+  min-height: 48px;
+}
+
+.stripe-checkout-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 8px 0 20px;
+  color: #666;
+  font-size: 14px;
+}
+
+.stripe-checkout-divider::before,
+.stripe-checkout-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(160, 22, 43, 0.2);
+}
+
 .stripe-checkout-form {
   width: 100%;
   max-width: 500px;

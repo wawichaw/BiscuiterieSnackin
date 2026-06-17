@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
 import {
   Elements,
   PaymentElement,
+  ExpressCheckoutElement,
   useStripe,
   useElements,
 } from '@stripe/react-stripe-js';
@@ -18,6 +19,122 @@ const CheckoutForm = ({ montant, commandeId, onSuccess, onError, clientSecret })
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState(null);
   const [paymentCompleted, setPaymentCompleted] = useState(false);
+  const [expressMethods, setExpressMethods] = useState(null);
+
+  const finalizePayment = useCallback(async (paymentIntent) => {
+    if (paymentIntent?.status === 'succeeded') {
+      setPaymentCompleted(true);
+      onSuccess(paymentIntent);
+      return true;
+    }
+    if (paymentIntent) {
+      const msg = `Le paiement n'a pas été complété. Statut: ${paymentIntent.status}`;
+      onError(msg);
+      return false;
+    }
+    onError('Le paiement n\'a pas été complété. Veuillez réessayer.');
+    return false;
+  }, [onSuccess, onError]);
+
+  const handleStripeError = useCallback(async (stripeError) => {
+    console.error('Erreur Stripe:', stripeError);
+    let errorMessage = stripeError.message;
+
+    if (stripeError.code === 'payment_intent_unexpected_state') {
+      try {
+        const retrieved = await stripe.retrievePaymentIntent(clientSecret);
+        if (retrieved.paymentIntent.status === 'succeeded') {
+          setPaymentCompleted(true);
+          onSuccess(retrieved.paymentIntent);
+          return;
+        }
+      } catch (err) {
+        console.error('Erreur lors de la vérification:', err);
+      }
+      errorMessage = 'Le paiement a déjà été traité. Si votre commande n\'apparaît pas, veuillez rafraîchir la page.';
+    } else if (stripeError.code === 'card_declined') {
+      errorMessage = 'Votre carte a été refusée. Veuillez vérifier les informations ou utiliser une autre carte.';
+    } else if (stripeError.code === 'incorrect_cvc') {
+      errorMessage = 'Le code de sécurité (CVC) est incorrect.';
+    } else if (stripeError.code === 'incorrect_number') {
+      errorMessage = 'Le numéro de carte est incorrect.';
+    } else if (stripeError.code === 'invalid_expiry_month' || stripeError.code === 'invalid_expiry_year') {
+      errorMessage = 'La date d\'expiration est invalide.';
+    } else if (stripeError.code === 'invalid_postal_code') {
+      errorMessage = 'Le code postal est invalide. Pour le Canada, utilisez le format H1A 1A1 (lettres et chiffres).';
+    }
+
+    setError(errorMessage);
+    onError(errorMessage);
+  }, [stripe, clientSecret, onSuccess, onError]);
+
+  const confirmStripePayment = useCallback(async () => {
+    if (!stripe || !elements) {
+      const msg = 'Stripe n\'est pas encore chargé. Veuillez patienter...';
+      setError(msg);
+      onError(msg);
+      return false;
+    }
+
+    if (!clientSecret) {
+      const msg = 'Le paiement n\'est pas encore initialisé. Veuillez patienter...';
+      setError(msg);
+      onError(msg);
+      return false;
+    }
+
+    try {
+      const currentPaymentIntent = await stripe.retrievePaymentIntent(clientSecret);
+      if (currentPaymentIntent?.paymentIntent?.status === 'succeeded') {
+        setPaymentCompleted(true);
+        onSuccess(currentPaymentIntent.paymentIntent);
+        return true;
+      }
+    } catch (retrieveError) {
+      console.error('Erreur lors de la récupération du PaymentIntent:', retrieveError);
+    }
+
+    const { error: stripeError, paymentIntent } = await stripe.confirmPayment({
+      elements,
+      confirmParams: {
+        return_url: window.location.href,
+      },
+      redirect: 'if_required',
+    });
+
+    if (stripeError) {
+      await handleStripeError(stripeError);
+      return false;
+    }
+
+    return finalizePayment(paymentIntent);
+  }, [stripe, elements, clientSecret, onSuccess, handleStripeError, finalizePayment, onError]);
+
+  const handleExpressConfirm = async () => {
+    if (processing || paymentCompleted) return;
+
+    setProcessing(true);
+    setError(null);
+
+    try {
+      const { error: submitError } = await elements.submit();
+      if (submitError) {
+        setError(submitError.message);
+        onError(submitError.message);
+        setProcessing(false);
+        return;
+      }
+
+      await confirmStripePayment();
+    } catch (err) {
+      console.error('Erreur Apple Pay / Google Pay:', err);
+      const msg = 'Une erreur inattendue s\'est produite. Veuillez réessayer.';
+      setError(msg);
+      onError(msg);
+    }
+
+    setProcessing(false);
+  };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -41,83 +158,7 @@ const CheckoutForm = ({ montant, commandeId, onSuccess, onError, clientSecret })
     setError(null);
 
     try {
-      // Vérifier d'abord le statut actuel du PaymentIntent
-      let currentPaymentIntent;
-      
-      try {
-        currentPaymentIntent = await stripe.retrievePaymentIntent(clientSecret);
-        
-        // Si le PaymentIntent est déjà succeeded, ne pas essayer de le confirmer à nouveau
-        if (currentPaymentIntent?.paymentIntent?.status === 'succeeded') {
-          console.log('PaymentIntent déjà confirmé avec succès');
-          setPaymentCompleted(true);
-          onSuccess(currentPaymentIntent.paymentIntent);
-          setProcessing(false);
-          return;
-        }
-      } catch (retrieveError) {
-        console.error('Erreur lors de la récupération du PaymentIntent:', retrieveError);
-        // Continuer avec la confirmation normale si la récupération échoue
-      }
-
-      // Utiliser confirmPayment avec PaymentElement (plus moderne et gère mieux les codes postaux)
-      const { error: stripeError, paymentIntent } = await stripe.confirmPayment({
-        elements,
-        confirmParams: {
-          return_url: window.location.href, // Pas utilisé mais requis
-        },
-        redirect: 'if_required', // Ne pas rediriger automatiquement
-      });
-
-      if (stripeError) {
-        console.error('Erreur Stripe:', stripeError);
-        let errorMessage = stripeError.message;
-        
-        // Gérer l'erreur spécifique "payment_intent_unexpected_state"
-        if (stripeError.code === 'payment_intent_unexpected_state') {
-          // Le PaymentIntent est peut-être déjà confirmé, vérifier à nouveau
-          try {
-            const retrieved = await stripe.retrievePaymentIntent(clientSecret);
-            if (retrieved.paymentIntent.status === 'succeeded') {
-              setPaymentCompleted(true);
-              onSuccess(retrieved.paymentIntent);
-              setProcessing(false);
-              return;
-            }
-          } catch (err) {
-            console.error('Erreur lors de la vérification:', err);
-          }
-          errorMessage = 'Le paiement a déjà été traité. Si votre commande n\'apparaît pas, veuillez rafraîchir la page.';
-        } else if (stripeError.code === 'card_declined') {
-          errorMessage = 'Votre carte a été refusée. Veuillez vérifier les informations ou utiliser une autre carte.';
-        } else if (stripeError.code === 'incorrect_cvc') {
-          errorMessage = 'Le code de sécurité (CVC) est incorrect.';
-        } else if (stripeError.code === 'incorrect_number') {
-          errorMessage = 'Le numéro de carte est incorrect.';
-        } else if (stripeError.code === 'invalid_expiry_month' || stripeError.code === 'invalid_expiry_year') {
-          errorMessage = 'La date d\'expiration est invalide.';
-        } else if (stripeError.code === 'invalid_postal_code') {
-          errorMessage = 'Le code postal est invalide. Pour le Canada, utilisez le format H1A 1A1 (lettres et chiffres).';
-        }
-        
-        setError(errorMessage);
-        setProcessing(false);
-        onError(errorMessage);
-        return;
-      }
-
-      if (paymentIntent && paymentIntent.status === 'succeeded') {
-        // Le paiement est réussi, marquer comme complété et appeler onSuccess
-        setPaymentCompleted(true);
-        onSuccess(paymentIntent);
-      } else if (paymentIntent) {
-        onError(`Le paiement n'a pas été complété. Statut: ${paymentIntent.status}`);
-        setProcessing(false);
-      } else {
-        // Pas de paymentIntent retourné, mais pas d'erreur non plus
-        onError('Le paiement n\'a pas été complété. Veuillez réessayer.');
-        setProcessing(false);
-      }
+      await confirmStripePayment();
     } catch (err) {
       console.error('Erreur lors du traitement du paiement:', err);
       setError('Une erreur inattendue s\'est produite. Veuillez réessayer.');
@@ -127,15 +168,45 @@ const CheckoutForm = ({ montant, commandeId, onSuccess, onError, clientSecret })
     setProcessing(false);
   };
 
+  const hasExpressCheckout = Boolean(
+    expressMethods?.applePay || expressMethods?.googlePay || expressMethods?.link
+  );
+
   return (
     <form onSubmit={handleSubmit} className="stripe-checkout-form">
+      <div className="stripe-express-checkout">
+        <ExpressCheckoutElement
+          options={{
+            buttonTheme: { applePay: 'black' },
+            buttonType: { applePay: 'buy' },
+            buttonHeight: 48,
+            layout: { maxColumns: 1, maxRows: 3 },
+            paymentMethods: {
+              applePay: 'always',
+              googlePay: 'auto',
+              link: 'auto',
+            },
+          }}
+          onReady={({ availablePaymentMethods }) => {
+            setExpressMethods(availablePaymentMethods ?? null);
+          }}
+          onConfirm={handleExpressConfirm}
+        />
+      </div>
+
+      {hasExpressCheckout && (
+        <div className="stripe-checkout-divider">
+          <span>ou payer par carte</span>
+        </div>
+      )}
+
       <div className="stripe-payment-element">
         <PaymentElement
           options={{
-            layout: 'tabs',
+            layout: 'accordion',
             wallets: {
-              applePay: 'auto',
-              googlePay: 'auto',
+              applePay: 'never',
+              googlePay: 'never',
             },
             fields: {
               billingDetails: {
