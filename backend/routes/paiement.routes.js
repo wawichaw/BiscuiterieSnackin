@@ -49,15 +49,17 @@ router.post('/create-intent', optionalAuth, async (req, res) => {
     // Convertir le montant en cents (Stripe utilise les cents)
     const amountInCents = Math.round(montant * 100);
 
-    // Créer le PaymentIntent (carte uniquement, sans Klarna ni autres méthodes)
+    // Apple Pay / Google Pay + carte via Payment Element
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amountInCents,
-      currency: 'cad', // CAD pour dollars canadiens
+      currency: 'cad',
       metadata: {
         commandeId: commandeId || 'pending',
       },
-      payment_method_types: ['card'],
-      // Spécifier le pays pour aider Stripe à détecter le format du code postal
+      automatic_payment_methods: {
+        enabled: true,
+        allow_redirects: 'never',
+      },
       payment_method_options: {
         card: {
           request_three_d_secure: 'automatic',

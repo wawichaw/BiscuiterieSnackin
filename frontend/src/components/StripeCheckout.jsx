@@ -133,7 +133,10 @@ const CheckoutForm = ({ montant, commandeId, onSuccess, onError, clientSecret })
         <PaymentElement
           options={{
             layout: 'tabs',
-            paymentMethodOrder: ['card'], 
+            wallets: {
+              applePay: 'auto',
+              googlePay: 'auto',
+            },
             fields: {
               billingDetails: {
                 address: {
@@ -157,7 +160,7 @@ const CheckoutForm = ({ montant, commandeId, onSuccess, onError, clientSecret })
         {processing ? 'Traitement...' : paymentCompleted ? 'Paiement complété ✓' : `Payer ${montant.toFixed(2)} $ CAD`}
       </button>
       <div className="stripe-security-note">
-        🔒 Paiement sécurisé par Stripe
+        🔒 Paiement sécurisé par Stripe — carte, Apple Pay ou Google Pay
       </div>
     </form>
   );

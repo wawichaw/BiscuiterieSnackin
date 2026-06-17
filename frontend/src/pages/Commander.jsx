@@ -834,7 +834,7 @@ const Commander = () => {
           </div>
 
           <div className="stripe-payment-section">
-            <h3>Paiement sécurisé par carte</h3>
+            <h3>Paiement sécurisé (carte, Apple Pay, Google Pay)</h3>
             <StripeCheckout
               montant={calculerTotal()}
               commandeId={null}
