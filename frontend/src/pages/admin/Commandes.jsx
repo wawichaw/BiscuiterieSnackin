@@ -15,7 +15,9 @@ const AdminCommandes = () => {
   const fetchCommandes = async () => {
     try {
       const response = await api.get('/commandes');
-      setCommandes(response.data.data.commandes);
+      const list = response.data.data.commandes || [];
+      list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      setCommandes(list);
     } catch (error) {
       console.error('Erreur:', error);
     } finally {
@@ -111,12 +113,25 @@ const AdminCommandes = () => {
             // Déterminer le nom et l'email du client
             const nomClient = commande.user?.name || commande.visiteurNom || 'N/A';
             const emailClient = commande.user?.email || commande.visiteurEmail || 'N/A';
+            const dateCommande = commande.createdAt
+              ? new Date(commande.createdAt).toLocaleString('fr-FR', {
+                  weekday: 'long',
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })
+              : 'N/A';
 
             return (
               <div key={commande._id} className="commande-card">
                 <div className="commande-header">
                   <div>
                     <h3>Commande #{commande._id.slice(-6)}</h3>
+                    <p className="commande-date">
+                      <strong>Passée le :</strong> {dateCommande}
+                    </p>
                     <p className="commande-client">
                       <strong>Client:</strong> {nomClient} ({emailClient})
                     </p>

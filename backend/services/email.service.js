@@ -89,6 +89,157 @@ const sendEmail = async (to, subject, text, html) => {
  * @param {String} options.heureLivraison - Heure de livraison (si livraison)
  * @param {Array} options.boites - Boîtes commandées
  */
+export const getAdminEmail = () => {
+  if (process.env.ADMIN_EMAIL) return process.env.ADMIN_EMAIL.trim();
+  const from = process.env.SENDGRID_FROM || process.env.SMTP_USER || '';
+  const match = from.match(/<([^>]+)>/);
+  if (match) return match[1].trim();
+  if (from.includes('@')) return from.replace(/^[^<]*['"]?/g, '').trim();
+  return 'snackin.mtl@gmail.com';
+};
+
+const formaterBoitesEmail = (boites = []) =>
+  boites.map((boite, index) => {
+    const saveursHTML = (boite.saveurs || []).map((s) => {
+      const nomBiscuit = s.biscuit?.nom || 'Biscuit';
+      return `<li>${s.quantite}x ${nomBiscuit}</li>`;
+    }).join('');
+    return `
+      <div style="margin-bottom: 16px; padding: 12px; background: #fff5f7; border-radius: 8px;">
+        <strong>Boîte ${index + 1} — ${boite.taille} biscuits (${Number(boite.prix || 0).toFixed(2)} $)</strong>
+        <ul style="margin: 8px 0 0 20px; padding: 0;">${saveursHTML}</ul>
+      </div>
+    `;
+  }).join('');
+
+const formaterBoitesTexte = (boites = []) =>
+  boites.map((boite, index) => {
+    const saveurs = (boite.saveurs || [])
+      .map((s) => `${s.quantite}x ${s.biscuit?.nom || 'Biscuit'}`)
+      .join(', ');
+    return `Boîte ${index + 1} — ${boite.taille} biscuits (${Number(boite.prix || 0).toFixed(2)} $) : ${saveurs}`;
+  }).join('\n');
+
+/**
+ * Notifie l'administrateur d'une nouvelle commande.
+ */
+export const envoyerEmailNotificationAdmin = async ({ commande, villeRamassage, adresseRamassage }) => {
+  try {
+    const hasSendGrid = !!process.env.SENDGRID_API_KEY;
+    const hasResend = !!process.env.RESEND_API_KEY;
+    const hasSmtp = !!(process.env.SMTP_USER && process.env.SMTP_PASSWORD);
+    if (!hasSendGrid && !hasResend && !hasSmtp) {
+      console.warn('⚠️ Notification admin non envoyée: aucun service email configuré.');
+      return { success: false, message: 'Aucun service email configuré' };
+    }
+
+    const to = getAdminEmail();
+    const numeroCommande = commande._id.toString().slice(-6);
+    const nomClient = commande.user?.name || commande.visiteurNom || 'Client';
+    const emailClient = commande.user?.email || commande.visiteurEmail || 'N/A';
+    const telephoneClient = commande.visiteurTelephone || '—';
+    const dateCommande = new Date(commande.createdAt || Date.now()).toLocaleString('fr-FR', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+    let receptionInfo = '';
+    let receptionTexte = '';
+    if (commande.typeReception === 'ramassage') {
+      const villeLabel = villeRamassage
+        || (commande.pointRamassage
+          ? commande.pointRamassage.charAt(0).toUpperCase() + commande.pointRamassage.slice(1)
+          : 'N/A');
+      const dateRamassage = commande.dateRamassage
+        ? new Date(commande.dateRamassage).toLocaleDateString('fr-FR', {
+            weekday: 'long',
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+          })
+        : 'N/A';
+      receptionInfo = `
+        <p><strong>Ramassage :</strong> ${villeLabel}</p>
+        ${adresseRamassage ? `<p><strong>Adresse :</strong> ${adresseRamassage}, ${villeLabel}</p>` : ''}
+        <p><strong>Date et heure :</strong> ${dateRamassage} à ${commande.heureRamassage || 'N/A'}</p>
+      `;
+      receptionTexte = `Ramassage : ${villeLabel}${adresseRamassage ? `\nAdresse : ${adresseRamassage}, ${villeLabel}` : ''}\nDate : ${dateRamassage} à ${commande.heureRamassage || 'N/A'}`;
+    } else {
+      const ville = commande.villeLivraison
+        ? commande.villeLivraison.charAt(0).toUpperCase() + commande.villeLivraison.slice(1)
+        : 'N/A';
+      receptionInfo = `
+        <p><strong>Livraison :</strong> ${ville}</p>
+        <p><strong>Adresse :</strong> ${commande.adresseLivraison?.rue || 'N/A'}, ${commande.adresseLivraison?.codePostal || 'N/A'}</p>
+      `;
+      receptionTexte = `Livraison : ${ville}\nAdresse : ${commande.adresseLivraison?.rue || 'N/A'}, ${commande.adresseLivraison?.codePostal || 'N/A'}`;
+    }
+
+    const paiementLabel = commande.methodePaiement === 'en_ligne' ? 'En ligne (Stripe)' : 'Sur place';
+    const paiementStatut = commande.paiementConfirme ? 'Confirmé' : 'En attente';
+    const adminUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/admin/commandes`;
+    const boites = commande.boites || [];
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head><meta charset="utf-8"></head>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+          <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: #a0162b; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+              <h1 style="margin: 0;">🍪 Nouvelle commande #${numeroCommande}</h1>
+            </div>
+            <div style="background: white; padding: 24px; border: 1px solid #ddd; border-radius: 0 0 8px 8px;">
+              <p><strong>Date de la commande :</strong> ${dateCommande}</p>
+              <p><strong>Client :</strong> ${nomClient}</p>
+              <p><strong>Email :</strong> ${emailClient}</p>
+              <p><strong>Téléphone :</strong> ${telephoneClient}</p>
+              <hr>
+              ${receptionInfo}
+              <p><strong>Paiement :</strong> ${paiementLabel} (${paiementStatut})</p>
+              <p><strong>Total :</strong> ${Number(commande.total || 0).toFixed(2)} $</p>
+              <h3>Boîtes commandées</h3>
+              ${formaterBoitesEmail(boites)}
+              <p style="margin-top: 24px;">
+                <a href="${adminUrl}" style="display: inline-block; padding: 12px 24px; background: #a0162b; color: white; text-decoration: none; border-radius: 6px;">
+                  Voir dans l'admin
+                </a>
+              </p>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+
+    const texte = `Nouvelle commande #${numeroCommande}
+
+Date : ${dateCommande}
+Client : ${nomClient}
+Email : ${emailClient}
+Téléphone : ${telephoneClient}
+
+${receptionTexte}
+Paiement : ${paiementLabel} (${paiementStatut})
+Total : ${Number(commande.total || 0).toFixed(2)} $
+
+${formaterBoitesTexte(boites)}
+
+Gérer : ${adminUrl}`;
+
+    const subject = `🍪 Nouvelle commande #${numeroCommande} — ${nomClient}`;
+    console.log('📧 Notification admin →', to);
+    const result = await sendEmail(to, subject, texte, html);
+    return result;
+  } catch (error) {
+    console.error('❌ Erreur notification admin:', error.message || error);
+    return { success: false, error: error.message || String(error) };
+  }
+};
+
 export const envoyerEmailConfirmation = async (options) => {
   try {
     const hasSendGrid = !!process.env.SENDGRID_API_KEY;
@@ -427,5 +578,5 @@ L'équipe Snackin'
   }
 };
 
-export default { envoyerEmailConfirmation, envoyerEmailRemerciement, envoyerEmailResetMotDePasse };
+export default { envoyerEmailConfirmation, envoyerEmailRemerciement, envoyerEmailResetMotDePasse, envoyerEmailNotificationAdmin, getAdminEmail };
 

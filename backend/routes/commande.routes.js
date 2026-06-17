@@ -15,6 +15,19 @@ const extrasEmailRamassage = async (commande) => {
   };
 };
 
+const notifierAdminNouvelleCommande = async (commande) => {
+  try {
+    const { envoyerEmailNotificationAdmin } = await import('../services/email.service.js');
+    const ramassageExtras = await extrasEmailRamassage(commande);
+    const result = await envoyerEmailNotificationAdmin({ commande, ...ramassageExtras });
+    if (!result.success) {
+      console.error('❌ Notification admin non envoyée:', result.message || result.error);
+    }
+  } catch (err) {
+    console.error('❌ Erreur notification admin:', err.message || err);
+  }
+};
+
 // Middleware optionnel pour l'authentification (ne bloque pas si pas de token)
 const optionalAuth = async (req, res, next) => {
   try {
@@ -45,17 +58,22 @@ router.get('/', authenticate, async (req, res) => {
     let commandes;
     
     if (isAdmin) {
-      // Admin voit toutes les commandes
-      commandes = await Commande.find().populate('user', 'name email').populate('boites.saveurs.biscuit');
+      // Admin : plus récentes en premier
+      commandes = await Commande.find()
+        .sort({ createdAt: -1 })
+        .populate('user', 'name email')
+        .populate('boites.saveurs.biscuit');
     } else {
-      // Utilisateur voit ses commandes + les commandes invité passées avec le même email (avant création de compte)
+      // Utilisateur : ses commandes, plus récentes en premier
       const userEmail = (user && user.email) ? user.email.trim().toLowerCase() : '';
       commandes = await Commande.find({
         $or: [
           { user: req.userId },
           { user: null, visiteurEmail: { $regex: new RegExp(`^${userEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') } },
         ],
-      }).populate('boites.saveurs.biscuit');
+      })
+        .sort({ createdAt: -1 })
+        .populate('boites.saveurs.biscuit');
     }
 
     res.json({
@@ -264,6 +282,8 @@ router.post('/', optionalAuth, [
         console.error('❌ Erreur envoi email confirmation à', email, ':', emailError.message || emailError);
       }
     }
+
+    await notifierAdminNouvelleCommande(commande);
 
     res.status(201).json({
       success: true,
