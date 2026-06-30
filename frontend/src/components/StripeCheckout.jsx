@@ -21,20 +21,35 @@ const CheckoutForm = ({ montant, commandeId, onSuccess, onError, clientSecret })
   const [paymentCompleted, setPaymentCompleted] = useState(false);
   const [expressMethods, setExpressMethods] = useState(null);
 
+  const resolvePaymentIntent = useCallback(async () => {
+    if (!stripe || !clientSecret) return null;
+    try {
+      const retrieved = await stripe.retrievePaymentIntent(clientSecret);
+      return retrieved?.paymentIntent ?? null;
+    } catch (err) {
+      console.error('Erreur lors de la récupération du PaymentIntent:', err);
+      return null;
+    }
+  }, [stripe, clientSecret]);
+
   const finalizePayment = useCallback(async (paymentIntent) => {
-    if (paymentIntent?.status === 'succeeded') {
+    let intent = paymentIntent;
+    if (!intent || intent.status !== 'succeeded') {
+      intent = await resolvePaymentIntent();
+    }
+    if (intent?.status === 'succeeded') {
       setPaymentCompleted(true);
-      onSuccess(paymentIntent);
+      onSuccess(intent);
       return true;
     }
-    if (paymentIntent) {
-      const msg = `Le paiement n'a pas été complété. Statut: ${paymentIntent.status}`;
+    if (intent) {
+      const msg = `Le paiement n'a pas été complété. Statut: ${intent.status}`;
       onError(msg);
       return false;
     }
     onError('Le paiement n\'a pas été complété. Veuillez réessayer.');
     return false;
-  }, [onSuccess, onError]);
+  }, [onSuccess, onError, resolvePaymentIntent]);
 
   const handleStripeError = useCallback(async (stripeError) => {
     console.error('Erreur Stripe:', stripeError);
@@ -42,10 +57,10 @@ const CheckoutForm = ({ montant, commandeId, onSuccess, onError, clientSecret })
 
     if (stripeError.code === 'payment_intent_unexpected_state') {
       try {
-        const retrieved = await stripe.retrievePaymentIntent(clientSecret);
-        if (retrieved.paymentIntent.status === 'succeeded') {
+        const retrieved = await resolvePaymentIntent();
+        if (retrieved?.status === 'succeeded') {
           setPaymentCompleted(true);
-          onSuccess(retrieved.paymentIntent);
+          onSuccess(retrieved);
           return;
         }
       } catch (err) {
@@ -66,7 +81,7 @@ const CheckoutForm = ({ montant, commandeId, onSuccess, onError, clientSecret })
 
     setError(errorMessage);
     onError(errorMessage);
-  }, [stripe, clientSecret, onSuccess, onError]);
+  }, [resolvePaymentIntent, onSuccess, onError]);
 
   const confirmStripePayment = useCallback(async () => {
     if (!stripe || !elements) {
@@ -84,10 +99,10 @@ const CheckoutForm = ({ montant, commandeId, onSuccess, onError, clientSecret })
     }
 
     try {
-      const currentPaymentIntent = await stripe.retrievePaymentIntent(clientSecret);
-      if (currentPaymentIntent?.paymentIntent?.status === 'succeeded') {
+      const currentPaymentIntent = await resolvePaymentIntent();
+      if (currentPaymentIntent?.status === 'succeeded') {
         setPaymentCompleted(true);
-        onSuccess(currentPaymentIntent.paymentIntent);
+        onSuccess(currentPaymentIntent);
         return true;
       }
     } catch (retrieveError) {
@@ -97,7 +112,7 @@ const CheckoutForm = ({ montant, commandeId, onSuccess, onError, clientSecret })
     const { error: stripeError, paymentIntent } = await stripe.confirmPayment({
       elements,
       confirmParams: {
-        return_url: window.location.href,
+        return_url: `${window.location.origin}${window.location.pathname}`,
       },
       redirect: 'if_required',
     });
@@ -108,7 +123,7 @@ const CheckoutForm = ({ montant, commandeId, onSuccess, onError, clientSecret })
     }
 
     return finalizePayment(paymentIntent);
-  }, [stripe, elements, clientSecret, onSuccess, handleStripeError, finalizePayment, onError]);
+  }, [stripe, elements, onSuccess, handleStripeError, finalizePayment, onError, resolvePaymentIntent]);
 
   const handleExpressConfirm = async () => {
     if (processing || paymentCompleted) return;
@@ -119,15 +134,12 @@ const CheckoutForm = ({ montant, commandeId, onSuccess, onError, clientSecret })
     try {
       const { error: submitError } = await elements.submit();
       if (submitError) {
-        setError(submitError.message);
-        onError(submitError.message);
-        setProcessing(false);
-        return;
+        console.warn('Express checkout submit:', submitError.message);
       }
 
       await confirmStripePayment();
     } catch (err) {
-      console.error('Erreur Apple Pay / Google Pay:', err);
+      console.error('Erreur paiement express (Link / Apple Pay / Google Pay):', err);
       const msg = 'Une erreur inattendue s\'est produite. Veuillez réessayer.';
       setError(msg);
       onError(msg);

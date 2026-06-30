@@ -14,6 +14,7 @@ const CACHE_TTL_MS = 5 * 60 * 1000;
 
 const TYPE_RECEPTION = 'ramassage';
 const METHODE_PAIEMENT = 'en_ligne';
+const PENDING_COMMANDE_KEY = 'snackin_pending_commande';
 
 const Commander = () => {
   const { user } = useAuth();
@@ -331,6 +332,122 @@ const Commander = () => {
   const calculerTotal = () =>
     boites.reduce((total, boite) => total + boite.prix, 0);
 
+  const getDonneesCommandeEnAttente = () => ({
+    boites,
+    pointRamassage,
+    dateRamassage,
+    heureRamassage,
+    visiteurNom,
+    visiteurEmail,
+    visiteurTelephone,
+  });
+
+  const sauvegarderCommandeEnAttente = (donnees = getDonneesCommandeEnAttente()) => {
+    try {
+      sessionStorage.setItem(PENDING_COMMANDE_KEY, JSON.stringify(donnees));
+    } catch (err) {
+      console.warn('Impossible de sauvegarder la commande en attente:', err);
+    }
+  };
+
+  const effacerCommandeEnAttente = () => {
+    sessionStorage.removeItem(PENDING_COMMANDE_KEY);
+  };
+
+  useEffect(() => {
+    if (currentStep === 3) {
+      sauvegarderCommandeEnAttente();
+    }
+  }, [currentStep, boites, pointRamassage, dateRamassage, heureRamassage, visiteurNom, visiteurEmail, visiteurTelephone]);
+
+  const creerCommandeApresPaiement = async (stripePaymentIntentId, donnees = getDonneesCommandeEnAttente()) => {
+    const boitesFormatees = donnees.boites.map(boite => ({
+      taille: boite.taille,
+      prix: boite.prix,
+      saveurs: boite.saveurs.map(s => ({
+        biscuit: s.biscuit,
+        quantite: s.quantite,
+      })),
+    }));
+
+    const dateComplete = new Date(`${donnees.dateRamassage}T${donnees.heureRamassage}:00`);
+
+    const commandeData = {
+      boites: boitesFormatees,
+      typeReception: TYPE_RECEPTION,
+      methodePaiement: METHODE_PAIEMENT,
+      total: donnees.boites.reduce((total, boite) => total + boite.prix, 0),
+      paiementConfirme: true,
+      stripePaymentIntentId,
+      pointRamassage: donnees.pointRamassage,
+      dateRamassage: dateComplete.toISOString(),
+      heureRamassage: donnees.heureRamassage,
+    };
+
+    if (!user) {
+      commandeData.visiteurNom = donnees.visiteurNom;
+      commandeData.visiteurEmail = donnees.visiteurEmail;
+      if (donnees.visiteurTelephone) {
+        commandeData.visiteurTelephone = donnees.visiteurTelephone;
+      }
+    }
+
+    const response = await api.post('/commandes', commandeData);
+
+    if (response.data?.data?.commande) {
+      effacerCommandeEnAttente();
+      setCommandeCreee({
+        numero: response.data.data.commande._id,
+        total: commandeData.total,
+        _id: response.data.data.commande._id,
+        ...response.data.data.commande,
+      });
+      setPaiementEnCours(false);
+      setError('');
+      setCurrentStep(4);
+      return response.data.data.commande;
+    }
+
+    throw new Error('Réponse invalide du serveur');
+  };
+
+  useEffect(() => {
+    const finaliserRetourStripe = async () => {
+      const params = new URLSearchParams(window.location.search);
+      const paymentIntentId = params.get('payment_intent');
+      const redirectStatus = params.get('redirect_status');
+
+      if (!paymentIntentId || redirectStatus !== 'succeeded') return;
+
+      window.history.replaceState({}, '', window.location.pathname);
+
+      const saved = sessionStorage.getItem(PENDING_COMMANDE_KEY);
+      if (!saved) {
+        setError(`Paiement reçu mais les détails de commande ont été perdus. Contactez-nous en mentionnant la référence Stripe : ${paymentIntentId}`);
+        return;
+      }
+
+      try {
+        const donnees = JSON.parse(saved);
+        setBoites(donnees.boites || []);
+        setPointRamassage(donnees.pointRamassage || '');
+        setDateRamassage(donnees.dateRamassage || '');
+        setHeureRamassage(donnees.heureRamassage || '');
+        setVisiteurNom(donnees.visiteurNom || '');
+        setVisiteurEmail(donnees.visiteurEmail || '');
+        setVisiteurTelephone(donnees.visiteurTelephone || '');
+        setCurrentStep(3);
+        await creerCommandeApresPaiement(paymentIntentId, donnees);
+      } catch (err) {
+        console.error('Erreur finalisation retour Stripe:', err);
+        const errorMessage = err.response?.data?.message || err.response?.data?.errors?.[0]?.msg || 'Erreur lors de la finalisation de la commande après paiement';
+        setError(errorMessage);
+      }
+    };
+
+    finaliserRetourStripe();
+  }, []);
+
   const validerBoites = () => {
     if (boites.length === 0) {
       setError('Veuillez ajouter au moins une boîte');
@@ -377,19 +494,16 @@ const Commander = () => {
       setPaiementEnCours(true);
       return;
     }
-    // Créer la commande après paiement réussi
     try {
-      setError(''); // Réinitialiser les erreurs
-      setPaiementEnCours(false); // Désactiver le formulaire de paiement
-      
-      // Créer la commande avec le paymentIntentId
-      await handleSubmit(null, paymentIntent.id);
-      // handleSubmit devrait maintenant passer à l'étape 4 automatiquement
+      setError('');
+      setPaiementEnCours(false);
+      sauvegarderCommandeEnAttente();
+      await creerCommandeApresPaiement(paymentIntent.id);
     } catch (err) {
       console.error('Erreur création commande:', err);
       const errorMessage = err.response?.data?.message || err.response?.data?.errors?.[0]?.msg || 'Erreur lors de la création de la commande';
       setError(errorMessage);
-      setPaiementEnCours(true); // Réactiver le formulaire en cas d'erreur
+      setPaiementEnCours(true);
     }
   };
 
@@ -405,57 +519,10 @@ const Commander = () => {
       setError('Le paiement en ligne est requis pour confirmer la commande');
       return;
     }
-    
+
     try {
-      // Convertir les boîtes au format attendu par le backend
-      const boitesFormatees = boites.map(boite => ({
-        taille: boite.taille,
-        prix: boite.prix,
-        saveurs: boite.saveurs.map(s => ({
-          biscuit: s.biscuit,
-          quantite: s.quantite
-        }))
-      }));
-
-      // Créer la date complète de ramassage
-      const dateComplete = new Date(`${dateRamassage}T${heureRamassage}:00`);
-
-      const commandeData = {
-        boites: boitesFormatees,
-        typeReception: TYPE_RECEPTION,
-        methodePaiement: METHODE_PAIEMENT,
-        total: calculerTotal(),
-        paiementConfirme: true,
-        stripePaymentIntentId,
-        pointRamassage,
-        dateRamassage: dateComplete.toISOString(),
-        heureRamassage,
-      };
-
-      // Ajouter les informations visiteur si pas connecté
-      if (!user) {
-        commandeData.visiteurNom = visiteurNom;
-        commandeData.visiteurEmail = visiteurEmail;
-        if (visiteurTelephone) {
-          commandeData.visiteurTelephone = visiteurTelephone;
-        }
-      }
-
-      const response = await api.post('/commandes', commandeData);
-
-      if (response.data?.data?.commande) {
-        setCommandeCreee({
-          numero: response.data.data.commande._id,
-          total: calculerTotal(),
-          _id: response.data.data.commande._id,
-          ...response.data.data.commande,
-        });
-        setPaiementEnCours(false);
-        setError('');
-        setCurrentStep(4);
-      } else {
-        throw new Error('Réponse invalide du serveur');
-      }
+      sauvegarderCommandeEnAttente();
+      await creerCommandeApresPaiement(stripePaymentIntentId);
     } catch (error) {
       console.error('Erreur lors de la commande:', error);
       let errorMessage = error.response?.data?.message || error.response?.data?.errors?.[0]?.msg;

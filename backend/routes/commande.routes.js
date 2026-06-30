@@ -1,6 +1,7 @@
 import express from 'express';
 import { body, validationResult } from 'express-validator';
 import Commande from '../models/Commande.model.js';
+import stripe from '../config/stripe.js';
 import { authenticate, isAdmin } from '../middleware/auth.middleware.js';
 import { getInfosRamassagePourEmail } from '../services/ramassage.service.js';
 
@@ -166,6 +167,28 @@ router.post('/', optionalAuth, [
         success: false,
         message: 'Erreurs de validation',
         errors: errors.array(),
+      });
+    }
+
+    // Éviter les doublons (ex. retour Stripe Link après redirection)
+    const commandeExistante = await Commande.findOne({
+      stripePaymentIntentId: req.body.stripePaymentIntentId,
+    }).populate('boites.saveurs.biscuit').populate('user', 'name email');
+
+    if (commandeExistante) {
+      return res.status(200).json({
+        success: true,
+        message: 'Commande déjà enregistrée',
+        data: { commande: commandeExistante },
+      });
+    }
+
+    const paymentIntent = await stripe.paymentIntents.retrieve(req.body.stripePaymentIntentId);
+    if (paymentIntent.status !== 'succeeded') {
+      return res.status(400).json({
+        success: false,
+        message: 'Le paiement n\'a pas été complété',
+        status: paymentIntent.status,
       });
     }
 
