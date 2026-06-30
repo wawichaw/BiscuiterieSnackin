@@ -13,7 +13,7 @@ import commandeRoutes from './routes/commande.routes.js';
 import commentaireRoutes from './routes/commentaire.routes.js';
 import galerieRoutes from './routes/galerie.routes.js';
 import horaireRoutes from './routes/horaire.routes.js';
-import paiementRoutes from './routes/paiement.routes.js';
+import paiementRoutes, { handleStripeWebhook } from './routes/paiement.routes.js';
 import tarifsRoutes from './routes/tarifs.routes.js';
 
 const app = express();
@@ -24,6 +24,9 @@ app.set('trust proxy', 1);
 
 // Connexion à la base de données
 connectDB();
+
+// Webhook Stripe — avant rate limiting et express.json (corps brut requis)
+app.post('/api/paiement/webhook', express.raw({ type: 'application/json' }), handleStripeWebhook);
 
 // Middleware de sécurité
 app.use(helmet());

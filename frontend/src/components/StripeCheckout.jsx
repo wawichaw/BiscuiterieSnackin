@@ -271,10 +271,10 @@ const StripeCheckout = ({ montant, commandeId, onSuccess, onError }) => {
       }
     };
 
-    if (montant > 0 && !clientSecret) {
+    if (montant > 0 && commandeId && !clientSecret) {
       createPaymentIntent();
     }
-  }, [montant, commandeId]);
+  }, [montant, commandeId, clientSecret]);
 
   if (!clientSecret) {
     return (

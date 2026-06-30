@@ -34,6 +34,8 @@ const Commander = () => {
   const [visiteurEmail, setVisiteurEmail] = useState('');
   const [visiteurTelephone, setVisiteurTelephone] = useState('');
   const [commandeCreee, setCommandeCreee] = useState(null);
+  const [commandeEnAttenteId, setCommandeEnAttenteId] = useState(null);
+  const [preparationPaiement, setPreparationPaiement] = useState(false);
   const [paiementEnCours, setPaiementEnCours] = useState(false);
   const [prixBoites, setPrixBoites] = useState({ 4: 15, 6: 20, 12: 35 });
   const navigate = useNavigate();
@@ -360,7 +362,7 @@ const Commander = () => {
     }
   }, [currentStep, boites, pointRamassage, dateRamassage, heureRamassage, visiteurNom, visiteurEmail, visiteurTelephone]);
 
-  const creerCommandeApresPaiement = async (stripePaymentIntentId, donnees = getDonneesCommandeEnAttente()) => {
+  const preparerCommandePourPaiement = async (donnees = getDonneesCommandeEnAttente()) => {
     const boitesFormatees = donnees.boites.map(boite => ({
       taille: boite.taille,
       prix: boite.prix,
@@ -371,14 +373,13 @@ const Commander = () => {
     }));
 
     const dateComplete = new Date(`${donnees.dateRamassage}T${donnees.heureRamassage}:00`);
+    const total = donnees.boites.reduce((sum, boite) => sum + boite.prix, 0);
 
     const commandeData = {
       boites: boitesFormatees,
       typeReception: TYPE_RECEPTION,
       methodePaiement: METHODE_PAIEMENT,
-      total: donnees.boites.reduce((total, boite) => total + boite.prix, 0),
-      paiementConfirme: true,
-      stripePaymentIntentId,
+      total,
       pointRamassage: donnees.pointRamassage,
       dateRamassage: dateComplete.toISOString(),
       heureRamassage: donnees.heureRamassage,
@@ -392,23 +393,72 @@ const Commander = () => {
       }
     }
 
-    const response = await api.post('/commandes', commandeData);
+    const response = await api.post('/commandes/preparer', commandeData);
+    if (response.data?.data?.commande?._id) {
+      return response.data.data.commande._id;
+    }
+    throw new Error('Impossible de préparer la commande');
+  };
 
+  const finaliserCommandePayee = async (paymentIntentId) => {
+    const response = await api.post('/paiement/finaliser', { paymentIntentId });
     if (response.data?.data?.commande) {
       effacerCommandeEnAttente();
+      const commande = response.data.data.commande;
       setCommandeCreee({
-        numero: response.data.data.commande._id,
-        total: commandeData.total,
-        _id: response.data.data.commande._id,
-        ...response.data.data.commande,
+        numero: commande._id,
+        total: commande.total,
+        _id: commande._id,
+        ...commande,
       });
       setPaiementEnCours(false);
       setError('');
       setCurrentStep(4);
-      return response.data.data.commande;
+      return commande;
     }
-
     throw new Error('Réponse invalide du serveur');
+  };
+
+  useEffect(() => {
+    if (currentStep < 3) {
+      setCommandeEnAttenteId(null);
+    }
+  }, [currentStep]);
+
+  useEffect(() => {
+    if (currentStep !== 3 || commandeEnAttenteId) return;
+    if (!user && (!visiteurNom || !visiteurEmail)) return;
+
+    let cancelled = false;
+
+    const preparer = async () => {
+      setPreparationPaiement(true);
+      setError('');
+      try {
+        sauvegarderCommandeEnAttente();
+        const id = await preparerCommandePourPaiement();
+        if (!cancelled) {
+          setCommandeEnAttenteId(id);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          console.error('Erreur préparation commande:', err);
+          const errorMessage = err.response?.data?.message || err.response?.data?.errors?.[0]?.msg || 'Erreur lors de la préparation de la commande';
+          setError(errorMessage);
+        }
+      } finally {
+        if (!cancelled) {
+          setPreparationPaiement(false);
+        }
+      }
+    };
+
+    preparer();
+    return () => { cancelled = true; };
+  }, [currentStep, commandeEnAttenteId, user, visiteurNom, visiteurEmail, visiteurTelephone, boites, pointRamassage, dateRamassage, heureRamassage]);
+
+  const creerCommandeApresPaiement = async (stripePaymentIntentId) => {
+    await finaliserCommandePayee(stripePaymentIntentId);
   };
 
   useEffect(() => {
@@ -421,23 +471,9 @@ const Commander = () => {
 
       window.history.replaceState({}, '', window.location.pathname);
 
-      const saved = sessionStorage.getItem(PENDING_COMMANDE_KEY);
-      if (!saved) {
-        setError(`Paiement reçu mais les détails de commande ont été perdus. Contactez-nous en mentionnant la référence Stripe : ${paymentIntentId}`);
-        return;
-      }
-
       try {
-        const donnees = JSON.parse(saved);
-        setBoites(donnees.boites || []);
-        setPointRamassage(donnees.pointRamassage || '');
-        setDateRamassage(donnees.dateRamassage || '');
-        setHeureRamassage(donnees.heureRamassage || '');
-        setVisiteurNom(donnees.visiteurNom || '');
-        setVisiteurEmail(donnees.visiteurEmail || '');
-        setVisiteurTelephone(donnees.visiteurTelephone || '');
         setCurrentStep(3);
-        await creerCommandeApresPaiement(paymentIntentId, donnees);
+        await finaliserCommandePayee(paymentIntentId);
       } catch (err) {
         console.error('Erreur finalisation retour Stripe:', err);
         const errorMessage = err.response?.data?.message || err.response?.data?.errors?.[0]?.msg || 'Erreur lors de la finalisation de la commande après paiement';
@@ -497,7 +533,6 @@ const Commander = () => {
     try {
       setError('');
       setPaiementEnCours(false);
-      sauvegarderCommandeEnAttente();
       await creerCommandeApresPaiement(paymentIntent.id);
     } catch (err) {
       console.error('Erreur création commande:', err);
@@ -902,12 +937,26 @@ const Commander = () => {
 
           <div className="stripe-payment-section">
             <h3>Paiement sécurisé</h3>
-            <StripeCheckout
-              montant={calculerTotal()}
-              commandeId={null}
-              onSuccess={handlePaiementSuccess}
-              onError={handlePaiementError}
-            />
+            {preparationPaiement || (!commandeEnAttenteId && (!user && (!visiteurNom || !visiteurEmail))) ? (
+              <div className="stripe-loading">
+                <p>
+                  {!user && (!visiteurNom || !visiteurEmail)
+                    ? 'Veuillez remplir votre nom et email pour continuer.'
+                    : 'Préparation du paiement...'}
+                </p>
+              </div>
+            ) : commandeEnAttenteId ? (
+              <StripeCheckout
+                montant={calculerTotal()}
+                commandeId={commandeEnAttenteId}
+                onSuccess={handlePaiementSuccess}
+                onError={handlePaiementError}
+              />
+            ) : (
+              <div className="stripe-loading">
+                <p>Impossible d'initialiser le paiement. Veuillez rafraîchir la page.</p>
+              </div>
+            )}
           </div>
 
           <div className="step-actions">

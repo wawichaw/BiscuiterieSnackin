@@ -2,6 +2,8 @@ import express from 'express';
 import { body, validationResult } from 'express-validator';
 import Commande from '../models/Commande.model.js';
 import stripe from '../config/stripe.js';
+import { finaliserCommandeApresPaiement } from '../services/commande-paiement.service.js';
+import { validerEtCalculerCommande } from '../services/commande-build.service.js';
 import { authenticate, isAdmin } from '../middleware/auth.middleware.js';
 import { getInfosRamassagePourEmail } from '../services/ramassage.service.js';
 
@@ -66,6 +68,11 @@ router.get('/', authenticate, async (req, res) => {
       } else if (archiveesParam !== 'all') {
         filtre.archivee = { $ne: true };
       }
+      // Masquer les commandes en ligne non payées (abandons de paiement)
+      filtre.$or = [
+        { paiementConfirme: true },
+        { methodePaiement: 'sur_place' },
+      ];
 
       commandes = await Commande.find(filtre)
         .sort({ createdAt: -1 })
@@ -133,6 +140,75 @@ router.get('/:id', authenticate, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Erreur serveur',
+    });
+  }
+});
+
+const reglesCommandeCommunes = [
+  body('boites').isArray({ min: 1 }).withMessage('Au moins une boîte est requise'),
+  body('boites.*.taille').isIn([4, 6, 12]).withMessage('La taille doit être 4, 6 ou 12'),
+  body('boites.*.saveurs').isArray().withMessage('Les saveurs doivent être un tableau'),
+  body('typeReception').equals('ramassage').withMessage('Seul le ramassage est disponible'),
+  body('pointRamassage').if((value, { req }) => req.body.typeReception === 'ramassage').trim().notEmpty().withMessage('Point de ramassage requis'),
+  body('dateRamassage').if((value, { req }) => req.body.typeReception === 'ramassage').notEmpty().withMessage('La date de ramassage est requise'),
+  body('heureRamassage').if((value, { req }) => req.body.typeReception === 'ramassage').notEmpty().withMessage('L\'heure de ramassage est requise'),
+  body('methodePaiement').equals('en_ligne').withMessage('Seul le paiement en ligne est accepté'),
+  body('visiteurNom').if((value, { req }) => !req.userId).notEmpty().withMessage('Le nom est requis pour les commandes en mode visiteur'),
+  body('visiteurEmail').if((value, { req }) => !req.userId).isEmail().withMessage('Un email valide est requis pour les commandes en mode visiteur'),
+];
+
+// @route   POST /api/commandes/preparer
+// @desc    Créer une commande en attente de paiement (avant Stripe — Klarna, Link, carte)
+// @access  Public (authentification optionnelle)
+router.post('/preparer', optionalAuth, reglesCommandeCommunes, async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Erreurs de validation',
+        errors: errors.array(),
+      });
+    }
+
+    const { commandeData, total } = await validerEtCalculerCommande(req.body);
+
+    commandeData.statut = 'en_attente';
+    commandeData.paiementConfirme = false;
+    commandeData.methodePaiement = 'en_ligne';
+
+    if (req.userId) {
+      commandeData.user = req.userId;
+    } else {
+      commandeData.visiteurNom = req.body.visiteurNom;
+      commandeData.visiteurEmail = req.body.visiteurEmail;
+      if (req.body.visiteurTelephone) {
+        commandeData.visiteurTelephone = req.body.visiteurTelephone;
+      }
+    }
+
+    if (Math.abs(total - Number(req.body.total)) > 0.01) {
+      return res.status(400).json({
+        success: false,
+        message: 'Le total de la commande ne correspond pas au montant attendu',
+      });
+    }
+
+    commandeData.total = total;
+
+    const commande = await Commande.create(commandeData);
+    await commande.populate('boites.saveurs.biscuit');
+
+    res.status(201).json({
+      success: true,
+      message: 'Commande préparée — en attente de paiement',
+      data: { commande },
+    });
+  } catch (error) {
+    console.error('Erreur préparation commande:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Erreur serveur',
     });
   }
 });

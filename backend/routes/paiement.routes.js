@@ -1,6 +1,7 @@
 import express from 'express';
 import Commande from '../models/Commande.model.js';
 import stripe from '../config/stripe.js';
+import { finaliserCommandeApresPaiement } from '../services/commande-paiement.service.js';
 import { getInfosRamassagePourEmail } from '../services/ramassage.service.js';
 // Middleware optionnel pour l'authentification
 const optionalAuth = async (req, res, next) => {
@@ -34,15 +35,35 @@ router.post('/create-intent', optionalAuth, async (req, res) => {
       });
     }
 
-    // Convertir le montant en cents (Stripe utilise les cents)
+    if (!commandeId) {
+      return res.status(400).json({
+        success: false,
+        message: 'La commande doit être préparée avant le paiement',
+      });
+    }
+
+    const commande = await Commande.findById(commandeId);
+    if (!commande) {
+      return res.status(404).json({
+        success: false,
+        message: 'Commande introuvable',
+      });
+    }
+
+    if (commande.paiementConfirme) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cette commande est déjà payée',
+      });
+    }
+
     const amountInCents = Math.round(montant * 100);
 
-    // Apple Pay / Google Pay + carte via Payment Element
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amountInCents,
       currency: 'cad',
       metadata: {
-        commandeId: commandeId || 'pending',
+        commandeId: commandeId.toString(),
       },
       automatic_payment_methods: {
         enabled: true,
@@ -55,9 +76,13 @@ router.post('/create-intent', optionalAuth, async (req, res) => {
       },
     });
 
+    commande.stripePaymentIntentId = paymentIntent.id;
+    await commande.save();
+
     res.json({
       success: true,
       clientSecret: paymentIntent.client_secret,
+      paymentIntentId: paymentIntent.id,
     });
   } catch (error) {
     console.error('Erreur Stripe:', error);
@@ -68,6 +93,79 @@ router.post('/create-intent', optionalAuth, async (req, res) => {
     });
   }
 });
+
+// @route   POST /api/paiement/finaliser
+// @desc    Finaliser une commande après paiement réussi (carte, Link, Klarna, etc.)
+// @access  Public (avec optionalAuth)
+router.post('/finaliser', optionalAuth, async (req, res) => {
+  try {
+    const { paymentIntentId } = req.body;
+
+    if (!paymentIntentId) {
+      return res.status(400).json({
+        success: false,
+        message: 'PaymentIntent ID requis',
+      });
+    }
+
+    const result = await finaliserCommandeApresPaiement(paymentIntentId);
+
+    if (!result.success) {
+      return res.status(result.commande ? 400 : 404).json({
+        success: false,
+        message: result.message,
+        status: result.status,
+        paymentIntentId: result.paymentIntentId,
+      });
+    }
+
+    res.json({
+      success: true,
+      message: result.alreadyConfirmed ? 'Commande déjà confirmée' : 'Commande confirmée avec succès',
+      data: { commande: result.commande },
+    });
+  } catch (error) {
+    console.error('Erreur finalisation paiement:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la finalisation du paiement',
+      error: error.message,
+    });
+  }
+});
+
+// @route   POST /api/paiement/webhook
+// @desc    Webhook Stripe — filet de sécurité pour Klarna, Link, redirections
+// @access  Stripe uniquement
+export const handleStripeWebhook = async (req, res) => {
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET?.trim();
+  let event;
+
+  try {
+    if (webhookSecret) {
+      const signature = req.headers['stripe-signature'];
+      event = stripe.webhooks.constructEvent(req.body, signature, webhookSecret);
+    } else {
+      event = JSON.parse(req.body.toString());
+      console.warn('⚠️ STRIPE_WEBHOOK_SECRET non configuré — webhook non vérifié');
+    }
+  } catch (error) {
+    console.error('❌ Webhook Stripe invalide:', error.message);
+    return res.status(400).send(`Webhook Error: ${error.message}`);
+  }
+
+  if (event.type === 'payment_intent.succeeded') {
+    const paymentIntent = event.data.object;
+    try {
+      await finaliserCommandeApresPaiement(paymentIntent.id);
+    } catch (error) {
+      console.error('❌ Erreur webhook payment_intent.succeeded:', error);
+      return res.status(500).json({ received: false });
+    }
+  }
+
+  res.json({ received: true });
+};
 
 // @route   POST /api/paiement/confirm
 // @desc    Confirmer le paiement et mettre à jour la commande
