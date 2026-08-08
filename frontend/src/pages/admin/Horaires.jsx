@@ -52,6 +52,7 @@ const defaultRegles = {
   actif: true,
   heureLimiteCommande: '11:00',
   delaiMinimumMinutes: 60,
+  bloquerJourMeme: true,
 };
 
 const AdminHoraires = () => {
@@ -84,6 +85,7 @@ const AdminHoraires = () => {
           actif: p.actif ?? defaultRegles.actif,
           heureLimiteCommande: p.heureLimiteCommande ?? defaultRegles.heureLimiteCommande,
           delaiMinimumMinutes: p.delaiMinimumMinutes ?? defaultRegles.delaiMinimumMinutes,
+          bloquerJourMeme: p.bloquerJourMeme ?? defaultRegles.bloquerJourMeme,
         });
       }
     } catch (err) {
@@ -324,6 +326,20 @@ const AdminHoraires = () => {
             {' '}Activer les règles de délai
           </label>
 
+          <label className="checkbox-label regles-jour-meme">
+            <input
+              type="checkbox"
+              checked={regles.bloquerJourMeme}
+              onChange={(e) => setRegles({ ...regles, bloquerJourMeme: e.target.checked })}
+              disabled={!regles.actif}
+            />
+            {' '}Bloquer les commandes pour le <strong>jour même</strong>
+          </label>
+          <p className="form-help regles-jour-meme-help">
+            Recommandé : les clients ne pourront pas choisir aujourd'hui comme date de ramassage.
+            La première date proposée sera <strong>demain</strong> (ex. un samedi, pas le samedi en cours).
+          </p>
+
           <div className="form-row regles-row">
             <div className="form-group">
               <label htmlFor="heureLimite">Heure limite pour bloquer demain</label>
@@ -337,11 +353,12 @@ const AdminHoraires = () => {
               />
               <p className="form-help">
                 Après cette heure, les clients ne peuvent plus commander pour le <strong>lendemain</strong>.
-                Exemple : à 11h01, seules les dates d'après-demain et plus tard sont proposées.
+                Exemple : un samedi à 11h01 → première date possible = lundi (pas dimanche).
               </p>
             </div>
+            {!regles.bloquerJourMeme && (
             <div className="form-group">
-              <label htmlFor="delaiMinimum">Délai minimum avant le ramassage</label>
+              <label htmlFor="delaiMinimum">Délai minimum avant le ramassage (jour même seulement)</label>
               <div className="delai-input-row">
                 <input
                   id="delaiMinimum"
@@ -357,10 +374,10 @@ const AdminHoraires = () => {
                 <span className="delai-unite">minutes</span>
               </div>
               <p className="form-help">
-                Pour le jour même, les créneaux trop proches sont masqués.
-                Exemple : à 11h55 avec 60 min de délai → le premier créneau possible est 12h55.
+                Uniquement si le jour même est autorisé : masque les créneaux trop proches.
               </p>
             </div>
+            )}
           </div>
 
           <button type="submit" className="btn btn-primary" disabled={savingRegles}>

@@ -21,6 +21,11 @@ const parametresCommandeSchema = new mongoose.Schema({
     min: [0, 'Le délai ne peut pas être négatif'],
     max: [1440, 'Le délai ne peut pas dépasser 24 h'],
   },
+  /** Si true, impossible de commander pour le jour même (minimum = demain). */
+  bloquerJourMeme: {
+    type: Boolean,
+    default: true,
+  },
 }, {
   timestamps: true,
   collection: 'parametrescommande',

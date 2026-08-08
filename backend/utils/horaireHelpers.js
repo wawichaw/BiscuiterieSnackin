@@ -20,7 +20,7 @@ export function addDaysToIso(isoDate, days) {
 
 /**
  * Date la plus tôt commandable selon les règles de cutoff.
- * Avant l'heure limite → aujourd'hui ; après → pas demain (minimum après-demain).
+ * Jour même bloqué → minimum demain ; après l'heure limite → minimum après-demain.
  */
 export function getDateMinimumCommande(parametres, now = getNowMontreal()) {
   const todayIso = formatIsoDateLocal(now);
@@ -31,9 +31,14 @@ export function getDateMinimumCommande(parametres, now = getNowMontreal()) {
 
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
   const limitMinutes = parseHeureMinutes(parametres.heureLimiteCommande || '11:00');
+  const bloquerJourMeme = parametres.bloquerJourMeme !== false;
 
   if (nowMinutes >= limitMinutes) {
     return addDaysToIso(todayIso, 2);
+  }
+
+  if (bloquerJourMeme) {
+    return addDaysToIso(todayIso, 1);
   }
 
   return todayIso;

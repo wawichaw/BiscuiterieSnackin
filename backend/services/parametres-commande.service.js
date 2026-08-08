@@ -4,6 +4,7 @@ const DEFAULTS = {
   actif: true,
   heureLimiteCommande: '11:00',
   delaiMinimumMinutes: 60,
+  bloquerJourMeme: true,
 };
 
 export async function getParametresCommande() {
@@ -16,6 +17,7 @@ export async function getParametresCommande() {
     actif: doc.actif ?? DEFAULTS.actif,
     heureLimiteCommande: doc.heureLimiteCommande ?? DEFAULTS.heureLimiteCommande,
     delaiMinimumMinutes: doc.delaiMinimumMinutes ?? DEFAULTS.delaiMinimumMinutes,
+    bloquerJourMeme: doc.bloquerJourMeme ?? DEFAULTS.bloquerJourMeme,
   };
 }
 
@@ -29,5 +31,6 @@ export async function updateParametresCommande(update) {
     actif: doc.actif,
     heureLimiteCommande: doc.heureLimiteCommande,
     delaiMinimumMinutes: doc.delaiMinimumMinutes,
+    bloquerJourMeme: doc.bloquerJourMeme,
   };
 }

@@ -401,8 +401,19 @@
 
 .regles-commande-form .regles-actif {
   display: block;
-  margin-bottom: 20px;
+  margin-bottom: 12px;
   font-weight: 600;
+}
+
+.regles-jour-meme {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.regles-jour-meme-help {
+  margin: 0 0 20px;
+  padding-left: 4px;
 }
 
 .regles-row {

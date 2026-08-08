@@ -62,6 +62,7 @@ router.put('/regles-commande', authenticate, isAdmin, [
   body('actif').optional().isBoolean().withMessage('actif doit être un booléen'),
   body('heureLimiteCommande').optional().matches(HEURE_REGEX).withMessage('Heure limite invalide (HH:MM)'),
   body('delaiMinimumMinutes').optional().isInt({ min: 0, max: 1440 }).withMessage('Délai minimum invalide'),
+  body('bloquerJourMeme').optional().isBoolean().withMessage('bloquerJourMeme doit être un booléen'),
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -77,6 +78,7 @@ router.put('/regles-commande', authenticate, isAdmin, [
     if (req.body.actif !== undefined) update.actif = Boolean(req.body.actif);
     if (req.body.heureLimiteCommande !== undefined) update.heureLimiteCommande = req.body.heureLimiteCommande;
     if (req.body.delaiMinimumMinutes !== undefined) update.delaiMinimumMinutes = Number(req.body.delaiMinimumMinutes);
+    if (req.body.bloquerJourMeme !== undefined) update.bloquerJourMeme = Boolean(req.body.bloquerJourMeme);
 
     if (Object.keys(update).length === 0) {
       return res.status(400).json({ success: false, message: 'Aucun paramètre à mettre à jour' });
