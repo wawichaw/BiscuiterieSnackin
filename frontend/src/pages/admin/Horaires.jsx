@@ -3,13 +3,13 @@ import api from '../../services/api';
 import './Horaires.css';
 
 const JOURS_SEMAINE = [
-  { value: 1, label: 'Lun' },
-  { value: 2, label: 'Mar' },
-  { value: 3, label: 'Mer' },
-  { value: 4, label: 'Jeu' },
-  { value: 5, label: 'Ven' },
-  { value: 6, label: 'Sam' },
-  { value: 0, label: 'Dim' },
+  { value: 1, label: 'Lun', fullLabel: 'Lundi' },
+  { value: 2, label: 'Mar', fullLabel: 'Mardi' },
+  { value: 3, label: 'Mer', fullLabel: 'Mercredi' },
+  { value: 4, label: 'Jeu', fullLabel: 'Jeudi' },
+  { value: 5, label: 'Ven', fullLabel: 'Vendredi' },
+  { value: 6, label: 'Sam', fullLabel: 'Samedi' },
+  { value: 0, label: 'Dim', fullLabel: 'Dimanche' },
 ];
 
 const defaultForm = {
@@ -22,13 +22,45 @@ const defaultForm = {
   disponible: true,
 };
 
+const genererHeuresLocales = (heureDebut, heureFin, intervalleMinutes = 30) => {
+  const parse = (hhmm) => {
+    const [h, m] = hhmm.split(':').map(Number);
+    return h * 60 + m;
+  };
+  const format = (mins) => {
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  };
+
+  const start = parse(heureDebut);
+  const end = parse(heureFin);
+  if (Number.isNaN(start) || Number.isNaN(end) || end < start) {
+    return [];
+  }
+
+  const heures = [];
+  for (let t = start; t <= end; t += intervalleMinutes) {
+    heures.push(format(t));
+  }
+  return heures.length ? heures : [heureDebut];
+};
+
+const trierHeures = (heures = []) => [...new Set(heures)].sort((a, b) => a.localeCompare(b));
+
 const AdminHoraires = () => {
   const [horaires, setHoraires] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState(defaultForm);
+  const [heuresManuelles, setHeuresManuelles] = useState(() =>
+    genererHeuresLocales(defaultForm.heureDebut, defaultForm.heureFin, defaultForm.intervalleMinutes),
+  );
+  const [nouvelleHeure, setNouvelleHeure] = useState('12:00');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     fetchHoraires();
@@ -50,6 +82,50 @@ const AdminHoraires = () => {
     }
   };
 
+  const resetForm = () => {
+    setFormData(defaultForm);
+    setHeuresManuelles(genererHeuresLocales(defaultForm.heureDebut, defaultForm.heureFin, defaultForm.intervalleMinutes));
+    setNouvelleHeure('12:00');
+    setEditingId(null);
+  };
+
+  const ouvrirCreation = () => {
+    resetForm();
+    setShowForm(true);
+    setError('');
+    setSuccess('');
+  };
+
+  const ouvrirEdition = (horaire) => {
+    const joursSemaine = horaire.joursSemaine?.length
+      ? [...horaire.joursSemaine]
+      : horaire.date
+        ? [new Date(horaire.date).getDay()]
+        : [];
+
+    const nextForm = {
+      ville: horaire.ville || '',
+      adresse: horaire.adresse || '',
+      joursSemaine,
+      heureDebut: horaire.heureDebut || '10:00',
+      heureFin: horaire.heureFin || '18:00',
+      intervalleMinutes: horaire.intervalleMinutes || 30,
+      disponible: horaire.disponible ?? true,
+    };
+
+    setEditingId(horaire._id);
+    setFormData(nextForm);
+    setHeuresManuelles(trierHeures(horaire.heures || []));
+    setShowForm(true);
+    setError('');
+    setSuccess('');
+  };
+
+  const fermerForm = () => {
+    setShowForm(false);
+    resetForm();
+  };
+
   const toggleJour = (jour) => {
     setFormData((prev) => {
       const selected = prev.joursSemaine.includes(jour)
@@ -57,6 +133,29 @@ const AdminHoraires = () => {
         : [...prev.joursSemaine, jour];
       return { ...prev, joursSemaine: selected.sort((a, b) => a - b) };
     });
+  };
+
+  const regenererHeures = () => {
+    if (formData.heureFin <= formData.heureDebut) {
+      setError('L\'heure de fin doit être après l\'heure de début');
+      return;
+    }
+    setHeuresManuelles(genererHeuresLocales(
+      formData.heureDebut,
+      formData.heureFin,
+      formData.intervalleMinutes,
+    ));
+    setError('');
+  };
+
+  const ajouterHeure = () => {
+    if (!nouvelleHeure) return;
+    setHeuresManuelles((prev) => trierHeures([...prev, nouvelleHeure]));
+    setError('');
+  };
+
+  const retirerHeure = (heure) => {
+    setHeuresManuelles((prev) => prev.filter((h) => h !== heure));
   };
 
   const handleSubmit = async (e) => {
@@ -69,19 +168,31 @@ const AdminHoraires = () => {
       return;
     }
 
-    if (formData.heureFin <= formData.heureDebut) {
-      setError('L\'heure de fin doit être après l\'heure de début');
+    if (heuresManuelles.length === 0) {
+      setError('Ajoutez au moins un créneau horaire');
       return;
     }
 
+    const payload = {
+      ...formData,
+      heures: heuresManuelles,
+    };
+
+    setSaving(true);
     try {
-      await api.post('/horaires', formData);
-      setSuccess('Plage horaire enregistrée avec succès !');
-      setFormData(defaultForm);
-      setShowForm(false);
+      if (editingId) {
+        await api.put(`/horaires/${editingId}`, payload);
+        setSuccess('Plage horaire mise à jour avec succès !');
+      } else {
+        await api.post('/horaires', payload);
+        setSuccess('Plage horaire enregistrée avec succès !');
+      }
+      fermerForm();
       fetchHoraires();
     } catch (err) {
       setError(err.response?.data?.message || 'Erreur lors de l\'enregistrement');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -90,9 +201,35 @@ const AdminHoraires = () => {
     try {
       await api.delete(`/horaires/${id}`);
       setSuccess('Horaire supprimé.');
+      if (editingId === id) {
+        fermerForm();
+      }
       fetchHoraires();
     } catch (err) {
       setError(err.response?.data?.message || 'Erreur lors de la suppression');
+    }
+  };
+
+  const toggleDisponible = async (horaire) => {
+    try {
+      await api.put(`/horaires/${horaire._id}`, {
+        ville: horaire.ville,
+        adresse: horaire.adresse,
+        joursSemaine: horaire.joursSemaine?.length
+          ? horaire.joursSemaine
+          : horaire.date
+            ? [new Date(horaire.date).getDay()]
+            : [3],
+        heureDebut: horaire.heureDebut || '10:00',
+        heureFin: horaire.heureFin || '18:00',
+        intervalleMinutes: horaire.intervalleMinutes || 30,
+        heures: horaire.heures || [],
+        disponible: !horaire.disponible,
+      });
+      setSuccess(horaire.disponible ? 'Point de ramassage désactivé.' : 'Point de ramassage activé.');
+      fetchHoraires();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Erreur lors de la mise à jour');
     }
   };
 
@@ -103,52 +240,48 @@ const AdminHoraires = () => {
       month: 'long',
     });
 
+  const getJourLabel = (value) =>
+    JOURS_SEMAINE.find((j) => j.value === value)?.fullLabel || `Jour ${value}`;
+
   if (loading) {
     return <div className="loading">Chargement...</div>;
   }
 
   const hasHoraires = horaires.length > 0;
-  const formVisible = showForm || !hasHoraires;
 
   return (
     <div className="admin-horaires-page">
       <div className="admin-header">
         <h1>🕐 Horaires de ramassage</h1>
-        {hasHoraires && (
+        {hasHoraires && !showForm && (
           <button
             type="button"
             className="btn btn-primary btn-add-plage"
-            onClick={() => setShowForm(!showForm)}
+            onClick={ouvrirCreation}
           >
-            {showForm ? 'Annuler' : '+ Ajouter une plage'}
+            + Ajouter une plage
           </button>
         )}
       </div>
 
       <p className="horaires-intro">
-        Choisissez les jours de la semaine (ex. mercredi et samedi), la plage horaire,
-        la ville et l&apos;adresse de pick-up. Les dates concrètes de la semaine en cours
-        sont calculées automatiquement pour vos clients.
+        Configurez chaque point de ramassage : choisissez les jours (ex. seulement le mercredi),
+        retirez le samedi si besoin, et ajustez les créneaux un par un ou regénérez-les depuis une plage horaire.
       </p>
 
       {error && <div className="alert alert-error">{error}</div>}
       {success && <div className="alert alert-success">{success}</div>}
 
-      {!formVisible && (
-        <div className="horaires-actions">
-          <button
-            type="button"
-            className="btn btn-primary btn-add-plage"
-            onClick={() => setShowForm(true)}
-          >
-            + Ajouter une plage horaire
-          </button>
-        </div>
-      )}
-
-      {formVisible && (
+      {showForm && (
         <form className="horaire-form" onSubmit={handleSubmit}>
-          <h2>Nouvelle plage de ramassage</h2>
+          <div className="horaire-form-header">
+            <h2>{editingId ? 'Modifier la plage de ramassage' : 'Nouvelle plage de ramassage'}</h2>
+            {hasHoraires && (
+              <button type="button" className="btn btn-secondary" onClick={fermerForm}>
+                Annuler
+              </button>
+            )}
+          </div>
 
           <div className="form-row">
             <div className="form-group">
@@ -180,7 +313,9 @@ const AdminHoraires = () => {
 
           <div className="form-group">
             <label>Jours de ramassage *</label>
-            <p className="form-help">Les clients verront les prochaines dates correspondantes (cette semaine et les suivantes).</p>
+            <p className="form-help">
+              Cliquez pour activer ou désactiver un jour. Exemple : seulement mercredi, sans samedi.
+            </p>
             <div className="jours-semaine-grid">
               {JOURS_SEMAINE.map(({ value, label }) => (
                 <button
@@ -194,28 +329,31 @@ const AdminHoraires = () => {
                 </button>
               ))}
             </div>
+            {formData.joursSemaine.length > 0 && (
+              <p className="jours-selectionnes">
+                Jours actifs : {formData.joursSemaine.map(getJourLabel).join(', ')}
+              </p>
+            )}
           </div>
 
           <div className="form-row form-row-three">
             <div className="form-group">
-              <label htmlFor="heureDebut">Heure de début *</label>
+              <label htmlFor="heureDebut">Heure de début</label>
               <input
                 id="heureDebut"
                 type="time"
                 value={formData.heureDebut}
                 onChange={(e) => setFormData({ ...formData, heureDebut: e.target.value })}
-                required
                 className="form-input"
               />
             </div>
             <div className="form-group">
-              <label htmlFor="heureFin">Heure de fin *</label>
+              <label htmlFor="heureFin">Heure de fin</label>
               <input
                 id="heureFin"
                 type="time"
                 value={formData.heureFin}
                 onChange={(e) => setFormData({ ...formData, heureFin: e.target.value })}
-                required
                 className="form-input"
               />
             </div>
@@ -236,8 +374,50 @@ const AdminHoraires = () => {
             </div>
           </div>
 
+          <div className="form-group heures-section">
+            <label>Créneaux horaires proposés aux clients *</label>
+            <p className="form-help">
+              Retirez un créneau avec × ou ajoutez-en un manuellement. Vous pouvez aussi regénérer tous les créneaux depuis la plage ci-dessus.
+            </p>
+
+            <div className="heures-badges-editable">
+              {heuresManuelles.length === 0 ? (
+                <p className="heures-vides">Aucun créneau — ajoutez-en ou regénérez depuis la plage horaire.</p>
+              ) : (
+                heuresManuelles.map((heure) => (
+                  <span key={heure} className="heure-badge-editable">
+                    {heure}
+                    <button
+                      type="button"
+                      className="heure-badge-remove"
+                      onClick={() => retirerHeure(heure)}
+                      aria-label={`Retirer ${heure}`}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))
+              )}
+            </div>
+
+            <div className="ajouter-heure-row">
+              <input
+                type="time"
+                value={nouvelleHeure}
+                onChange={(e) => setNouvelleHeure(e.target.value)}
+                className="form-input heure-ajout-input"
+              />
+              <button type="button" className="btn btn-secondary" onClick={ajouterHeure}>
+                + Ajouter un créneau
+              </button>
+              <button type="button" className="btn btn-secondary" onClick={regenererHeures}>
+                ↻ Regénérer depuis la plage
+              </button>
+            </div>
+          </div>
+
           <div className="form-group">
-            <label>
+            <label className="checkbox-label">
               <input
                 type="checkbox"
                 checked={formData.disponible}
@@ -247,20 +427,27 @@ const AdminHoraires = () => {
             </label>
           </div>
 
-          <button type="submit" className="btn btn-primary">
-            Enregistrer la plage
-          </button>
+          <div className="horaire-form-actions">
+            <button type="submit" className="btn btn-primary" disabled={saving}>
+              {saving ? 'Enregistrement...' : editingId ? 'Enregistrer les modifications' : 'Enregistrer la plage'}
+            </button>
+            {hasHoraires && (
+              <button type="button" className="btn btn-secondary" onClick={fermerForm}>
+                Annuler
+              </button>
+            )}
+          </div>
         </form>
       )}
 
       <div className="horaires-list">
-        {!hasHoraires && !formVisible ? (
+        {!hasHoraires && !showForm ? (
           <div className="horaires-empty">
             <p>Aucun horaire configuré pour le moment.</p>
             <button
               type="button"
               className="btn btn-primary btn-add-plage"
-              onClick={() => setShowForm(true)}
+              onClick={ouvrirCreation}
             >
               + Ajouter ma première plage
             </button>
@@ -268,7 +455,7 @@ const AdminHoraires = () => {
         ) : !hasHoraires ? null : (
           <div className="horaires-grid">
             {horaires.map((horaire) => (
-              <div key={horaire._id} className="horaire-card">
+              <div key={horaire._id} className={`horaire-card ${!horaire.disponible ? 'horaire-inactif' : ''}`}>
                 <div className="horaire-header">
                   <strong>
                     {horaire.joursSemaineLabel
@@ -301,13 +488,29 @@ const AdminHoraires = () => {
                     <span key={heure} className="heure-badge">{heure}</span>
                   ))}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => handleDelete(horaire._id)}
-                  className="btn btn-danger"
-                >
-                  Supprimer
-                </button>
+                <div className="horaire-card-actions">
+                  <button
+                    type="button"
+                    onClick={() => ouvrirEdition(horaire)}
+                    className="btn btn-primary"
+                  >
+                    ✏️ Modifier
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => toggleDisponible(horaire)}
+                    className="btn btn-secondary"
+                  >
+                    {horaire.disponible ? 'Désactiver' : 'Activer'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(horaire._id)}
+                    className="btn btn-danger-inline"
+                  >
+                    Supprimer
+                  </button>
+                </div>
               </div>
             ))}
           </div>

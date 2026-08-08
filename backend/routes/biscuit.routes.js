@@ -11,7 +11,7 @@ const router = express.Router();
 router.get('/', async (req, res) => {
   try {
     const light = req.query.light === '1' || req.query.light === 'true';
-    let query = { disponible: true };
+    let query = { disponible: true, stock: { $gt: 0 } };
 
     try {
       const authHeader = req.headers.authorization;
@@ -104,14 +104,104 @@ router.post('/', authenticate, isAdmin, [
   }
 });
 
+// @route   PATCH /api/biscuits/:id/stock
+// @desc    Ajuster le stock (restock ou rupture)
+// @access  Private/Admin
+router.patch('/:id/stock', authenticate, isAdmin, async (req, res) => {
+  try {
+    const biscuit = await Biscuit.findById(req.params.id);
+    if (!biscuit) {
+      return res.status(404).json({ success: false, message: 'Biscuit non trouvé' });
+    }
+
+    const { ajout, stock, reactiver = true } = req.body;
+
+    if (typeof ajout === 'number') {
+      biscuit.stock = Math.max(0, biscuit.stock + ajout);
+    } else if (typeof stock === 'number') {
+      biscuit.stock = Math.max(0, stock);
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: 'Indiquez « ajout » (nombre à ajouter) ou « stock » (nouvelle quantité)',
+      });
+    }
+
+    if (biscuit.stock <= 0) {
+      biscuit.stock = 0;
+      biscuit.disponible = false;
+    } else if (reactiver) {
+      biscuit.disponible = true;
+    }
+
+    await biscuit.save();
+
+    res.json({
+      success: true,
+      message: 'Stock mis à jour',
+      data: { biscuit },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+});
+
+// @route   PATCH /api/biscuits/:id/disponible
+// @desc    Activer ou désactiver un biscuit rapidement
+// @access  Private/Admin
+router.patch('/:id/disponible', authenticate, isAdmin, async (req, res) => {
+  try {
+    const biscuit = await Biscuit.findById(req.params.id);
+    if (!biscuit) {
+      return res.status(404).json({ success: false, message: 'Biscuit non trouvé' });
+    }
+
+    const { disponible } = req.body;
+    if (typeof disponible !== 'boolean') {
+      return res.status(400).json({
+        success: false,
+        message: 'Le champ disponible (booléen) est requis',
+      });
+    }
+
+    if (disponible && biscuit.stock <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Impossible d\'activer un biscuit sans stock. Faites un restock d\'abord.',
+      });
+    }
+
+    biscuit.disponible = disponible;
+    await biscuit.save();
+
+    res.json({
+      success: true,
+      message: disponible ? 'Biscuit activé' : 'Biscuit désactivé',
+      data: { biscuit },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+});
+
 // @route   PUT /api/biscuits/:id
 // @desc    Mettre à jour un biscuit
 // @access  Private/Admin
 router.put('/:id', authenticate, isAdmin, async (req, res) => {
   try {
+    const updates = { ...req.body };
+    if (typeof updates.stock === 'number') {
+      updates.stock = Math.max(0, updates.stock);
+      if (updates.stock <= 0) {
+        updates.disponible = false;
+      } else if (updates.disponible === undefined) {
+        updates.disponible = true;
+      }
+    }
+
     const biscuit = await Biscuit.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      updates,
       { new: true, runValidators: true }
     );
 

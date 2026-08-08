@@ -16,6 +16,16 @@ const TYPE_RECEPTION = 'ramassage';
 const METHODE_PAIEMENT = 'en_ligne';
 const PENDING_COMMANDE_KEY = 'snackin_pending_commande';
 
+const SOURCE_DECOUVERTE_OPTIONS = [
+  { value: 'instagram', label: 'Instagram' },
+  { value: 'facebook', label: 'Facebook' },
+  { value: 'tiktok', label: 'TikTok' },
+  { value: 'internet', label: 'Google / Internet' },
+  { value: 'bouche_a_oreille', label: 'Bouche-à-oreille' },
+  { value: 'evenement', label: 'Événement / marché' },
+  { value: 'autre', label: 'Autre' },
+];
+
 const Commander = () => {
   const { user } = useAuth();
   const [biscuits, setBiscuits] = useState([]);
@@ -33,6 +43,8 @@ const Commander = () => {
   const [visiteurNom, setVisiteurNom] = useState('');
   const [visiteurEmail, setVisiteurEmail] = useState('');
   const [visiteurTelephone, setVisiteurTelephone] = useState('');
+  const [sourceDecouverte, setSourceDecouverte] = useState('');
+  const [sourceDecouverteAutre, setSourceDecouverteAutre] = useState('');
   const [commandeCreee, setCommandeCreee] = useState(null);
   const [commandeEnAttenteId, setCommandeEnAttenteId] = useState(null);
   const [preparationPaiement, setPreparationPaiement] = useState(false);
@@ -59,7 +71,7 @@ const Commander = () => {
       if (cachedBiscuits) {
         const { data, at } = JSON.parse(cachedBiscuits);
         if (Date.now() - at < CACHE_TTL_MS && Array.isArray(data)) {
-          setBiscuits(data.filter(b => b.disponible !== false));
+          setBiscuits(data.filter(b => b.disponible !== false && (b.stock ?? 0) > 0));
           setLoading(false);
         }
       }
@@ -95,7 +107,7 @@ const Commander = () => {
             return [];
           }
         })();
-        const merged = mergeImages(list, cachedList).filter(b => b.disponible !== false);
+        const merged = mergeImages(list, cachedList).filter(b => b.disponible !== false && (b.stock ?? 0) > 0);
         setBiscuits(merged);
         try {
           localStorage.setItem('snackin_biscuits', JSON.stringify({ data: merged, at: Date.now() }));
@@ -107,7 +119,7 @@ const Commander = () => {
             .then((fullRes) => {
               if (cancelled) return;
               const fullList = fullRes.data?.data?.biscuits || [];
-              const withImages = mergeImages(merged, fullList).filter(b => b.disponible !== false);
+              const withImages = mergeImages(merged, fullList).filter(b => b.disponible !== false && (b.stock ?? 0) > 0);
               if (hasAnyImage(withImages)) {
                 setBiscuits(withImages);
                 try {
@@ -230,7 +242,7 @@ const Commander = () => {
     try {
       const response = await api.get('/biscuits?light=1');
       const list = response.data?.data?.biscuits || [];
-      setBiscuits(list.filter(b => b.disponible !== false));
+      setBiscuits(list.filter(b => b.disponible !== false && (b.stock ?? 0) > 0));
     } catch (error) {
       console.error('Erreur chargement biscuits:', error);
       setBiscuits([]);
@@ -247,6 +259,15 @@ const Commander = () => {
     const base = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/api\/?$/, '') || window.location.origin;
     return (base + (img.startsWith('/') ? '' : '/') + img);
   };
+
+  const getQuantiteTotaleBiscuit = (biscuitId) =>
+    boites.reduce((total, boite) => {
+      const saveur = boite.saveurs.find((s) => s.biscuit === biscuitId);
+      return total + (saveur?.quantite || 0);
+    }, 0);
+
+  const getStockRestant = (biscuit) =>
+    Math.max(0, (biscuit?.stock ?? 0) - getQuantiteTotaleBiscuit(biscuit._id));
 
   const ajouterBoite = () => {
     setBoites([...boites, {
@@ -270,6 +291,9 @@ const Commander = () => {
   };
 
   const ajouterSaveur = (boiteId, biscuitId) => {
+    const biscuit = biscuits.find((b) => b._id === biscuitId);
+    if (biscuit && getStockRestant(biscuit) <= 0) return;
+
     setBoites(boites.map(b => {
       if (b.id === boiteId) {
         const saveurExistante = b.saveurs.find(s => s.biscuit === biscuitId);
@@ -342,7 +366,15 @@ const Commander = () => {
     visiteurNom,
     visiteurEmail,
     visiteurTelephone,
+    sourceDecouverte,
+    sourceDecouverteAutre,
   });
+
+  const isSourceDecouverteComplete = () => {
+    if (!sourceDecouverte) return false;
+    if (sourceDecouverte === 'autre' && !sourceDecouverteAutre.trim()) return false;
+    return true;
+  };
 
   const sauvegarderCommandeEnAttente = (donnees = getDonneesCommandeEnAttente()) => {
     try {
@@ -360,7 +392,7 @@ const Commander = () => {
     if (currentStep === 3) {
       sauvegarderCommandeEnAttente();
     }
-  }, [currentStep, boites, pointRamassage, dateRamassage, heureRamassage, visiteurNom, visiteurEmail, visiteurTelephone]);
+  }, [currentStep, boites, pointRamassage, dateRamassage, heureRamassage, visiteurNom, visiteurEmail, visiteurTelephone, sourceDecouverte, sourceDecouverteAutre]);
 
   const preparerCommandePourPaiement = async (donnees = getDonneesCommandeEnAttente()) => {
     const boitesFormatees = donnees.boites.map(boite => ({
@@ -383,7 +415,12 @@ const Commander = () => {
       pointRamassage: donnees.pointRamassage,
       dateRamassage: dateComplete.toISOString(),
       heureRamassage: donnees.heureRamassage,
+      sourceDecouverte: donnees.sourceDecouverte,
     };
+
+    if (donnees.sourceDecouverte === 'autre') {
+      commandeData.sourceDecouverteAutre = donnees.sourceDecouverteAutre.trim();
+    }
 
     if (!user) {
       commandeData.visiteurNom = donnees.visiteurNom;
@@ -428,6 +465,7 @@ const Commander = () => {
   useEffect(() => {
     if (currentStep !== 3 || commandeEnAttenteId) return;
     if (!user && (!visiteurNom || !visiteurEmail)) return;
+    if (!isSourceDecouverteComplete()) return;
 
     let cancelled = false;
 
@@ -455,7 +493,7 @@ const Commander = () => {
 
     preparer();
     return () => { cancelled = true; };
-  }, [currentStep, commandeEnAttenteId, user, visiteurNom, visiteurEmail, visiteurTelephone, boites, pointRamassage, dateRamassage, heureRamassage]);
+  }, [currentStep, commandeEnAttenteId, user, visiteurNom, visiteurEmail, visiteurTelephone, sourceDecouverte, sourceDecouverteAutre, boites, pointRamassage, dateRamassage, heureRamassage]);
 
   const creerCommandeApresPaiement = async (stripePaymentIntentId) => {
     await finaliserCommandePayee(stripePaymentIntentId);
@@ -511,8 +549,20 @@ const Commander = () => {
     setCurrentStep(3);
   };
 
+  const validerSourceDecouverte = () => {
+    if (!sourceDecouverte) {
+      setError('Veuillez indiquer comment vous nous avez trouvé');
+      return false;
+    }
+    if (sourceDecouverte === 'autre' && !sourceDecouverteAutre.trim()) {
+      setError('Veuillez préciser comment vous nous avez trouvé');
+      return false;
+    }
+    return true;
+  };
+
   const validerInfosVisiteur = () => {
-    if (user) return true;
+    if (user) return validerSourceDecouverte();
     if (!visiteurNom || !visiteurEmail) {
       setError('Veuillez remplir votre nom et votre email');
       return false;
@@ -522,7 +572,7 @@ const Commander = () => {
       setError('Veuillez entrer un email valide');
       return false;
     }
-    return true;
+    return validerSourceDecouverte();
   };
 
   const handlePaiementSuccess = async (paymentIntent) => {
@@ -672,6 +722,7 @@ const Commander = () => {
                   <div className="saveurs-grid">
                     {biscuits.map((biscuit) => {
                       const quantite = getQuantiteSaveur(boite.id, biscuit._id);
+                      const stockRestant = getStockRestant(biscuit);
                       const imageUrl = getBiscuitImageUrl(biscuit);
                       return (
                         <div key={biscuit._id} className="saveur-item">
@@ -690,6 +741,11 @@ const Commander = () => {
                           <div className="saveur-info">
                             <strong>{biscuit.nom}</strong>
                             {biscuit.saveur && <span className="saveur-tag">{biscuit.saveur}</span>}
+                            {stockRestant <= 5 && (
+                              <span className="saveur-stock-hint">
+                                {stockRestant === 0 ? 'Rupture de stock' : `${stockRestant} restant${stockRestant > 1 ? 's' : ''}`}
+                              </span>
+                            )}
                           </div>
                           <div className="saveur-controls">
                             {quantite > 0 && (
@@ -705,7 +761,7 @@ const Commander = () => {
                             <button
                               type="button"
                               onClick={() => ajouterSaveur(boite.id, biscuit._id)}
-                              disabled={reste === 0}
+                              disabled={reste === 0 || stockRestant === 0}
                               className="btn-quantity"
                             >
                               +
@@ -909,6 +965,50 @@ const Commander = () => {
             </div>
           )}
 
+          <div className="source-decouverte-section">
+            <h3>Comment nous avez-vous trouvé ?</h3>
+            <div className="form-group">
+              <label htmlFor="source-decouverte">Source *</label>
+              <select
+                id="source-decouverte"
+                value={sourceDecouverte}
+                onChange={(e) => {
+                  setSourceDecouverte(e.target.value);
+                  if (e.target.value !== 'autre') {
+                    setSourceDecouverteAutre('');
+                  }
+                  setCommandeEnAttenteId(null);
+                }}
+                required
+                className="form-select"
+              >
+                <option value="">Sélectionnez une option</option>
+                {SOURCE_DECOUVERTE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {sourceDecouverte === 'autre' && (
+              <div className="form-group">
+                <label htmlFor="source-decouverte-autre">Précisez *</label>
+                <input
+                  id="source-decouverte-autre"
+                  type="text"
+                  value={sourceDecouverteAutre}
+                  onChange={(e) => {
+                    setSourceDecouverteAutre(e.target.value);
+                    setCommandeEnAttenteId(null);
+                  }}
+                  required
+                  className="form-input"
+                  placeholder="Ex. : recommandation d'un ami, flyer..."
+                />
+              </div>
+            )}
+          </div>
+
           <div className="commande-resume">
             <h3>Résumé de votre commande</h3>
             <div className="resume-item">
@@ -937,12 +1037,14 @@ const Commander = () => {
 
           <div className="stripe-payment-section">
             <h3>Paiement sécurisé</h3>
-            {preparationPaiement || (!commandeEnAttenteId && (!user && (!visiteurNom || !visiteurEmail))) ? (
+            {preparationPaiement || (!commandeEnAttenteId && ((!user && (!visiteurNom || !visiteurEmail)) || !isSourceDecouverteComplete())) ? (
               <div className="stripe-loading">
                 <p>
                   {!user && (!visiteurNom || !visiteurEmail)
                     ? 'Veuillez remplir votre nom et email pour continuer.'
-                    : 'Préparation du paiement...'}
+                    : !isSourceDecouverteComplete()
+                      ? 'Veuillez indiquer comment vous nous avez trouvé pour continuer.'
+                      : 'Préparation du paiement...'}
                 </p>
               </div>
             ) : commandeEnAttenteId ? (

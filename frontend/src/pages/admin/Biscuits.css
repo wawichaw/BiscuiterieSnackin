@@ -171,10 +171,75 @@
   padding: 24px;
   border-radius: 16px;
   border: 2px solid rgba(160, 22, 43, 0.1);
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: 1fr minmax(220px, 280px) auto;
   gap: 20px;
+  align-items: start;
+}
+
+.biscuit-item-indisponible {
+  opacity: 0.88;
+  background: #fafafa;
+}
+
+.biscuit-stock-panel {
+  padding: 16px;
+  background: #fff5f7;
+  border-radius: 12px;
+  border: 1px solid rgba(160, 22, 43, 0.12);
+}
+
+.biscuit-stock-panel h4 {
+  margin: 0 0 12px;
+  color: var(--cherry);
+  font-size: 14px;
+}
+
+.stock-quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.stock-restock-row {
+  display: flex;
+  gap: 8px;
+}
+
+.stock-restock-input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 12px;
+  border: 2px solid rgba(160, 22, 43, 0.2);
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.btn-sm {
+  padding: 8px 14px;
+  font-size: 13px;
+}
+
+.biscuit-stock.stock-ok strong {
+  color: #155724;
+}
+
+.biscuit-stock.stock-low strong {
+  color: #856404;
+}
+
+.biscuit-stock.stock-empty strong {
+  color: #c33;
+}
+
+.biscuit-stock.stock-low {
+  color: #856404;
+}
+
+.biscuit-stock.stock-empty {
+  color: #c33;
+  font-weight: 600;
 }
 
 .biscuit-info {
@@ -258,7 +323,7 @@
   }
 
   .biscuit-item {
-    flex-direction: column;
+    grid-template-columns: 1fr;
   }
 
   .biscuit-actions {
@@ -268,6 +333,10 @@
 
   .biscuit-actions .btn {
     flex: 1;
+  }
+
+  .stock-restock-row {
+    flex-direction: column;
   }
 }
 

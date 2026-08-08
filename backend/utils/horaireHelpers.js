@@ -39,7 +39,21 @@ export function genererHeures(heureDebut, heureFin, intervalleMinutes = 30) {
   return heures.length ? heures : [heureDebut];
 }
 
-export const HEURE_REGEX = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+export function trierHeures(heures = []) {
+  return [...new Set(heures)].sort((a, b) => a.localeCompare(b));
+}
+
+export function validerHeures(heures = []) {
+  if (!Array.isArray(heures) || heures.length === 0) {
+    throw new Error('Au moins un créneau horaire est requis');
+  }
+  for (const heure of heures) {
+    if (!HEURE_REGEX.test(heure)) {
+      throw new Error(`Créneau horaire invalide : ${heure}`);
+    }
+  }
+  return trierHeures(heures);
+}
 
 /** 0 = dimanche … 6 = samedi (convention JavaScript) */
 export const JOURS_LABELS = {

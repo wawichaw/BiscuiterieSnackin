@@ -20,6 +20,8 @@ const AdminBiscuits = () => {
   const [imagePreview, setImagePreview] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [restockValues, setRestockValues] = useState({});
+  const [updatingId, setUpdatingId] = useState(null);
 
   useEffect(() => {
     fetchBiscuits();
@@ -136,6 +138,49 @@ const AdminBiscuits = () => {
     } catch (error) {
       setError(error.response?.data?.message || 'Erreur lors de l\'enregistrement du biscuit');
     }
+  };
+
+  const handleStockUpdate = async (id, payload, successMessage) => {
+    setUpdatingId(id);
+    setError('');
+    setSuccess('');
+    try {
+      const response = await api.patch(`/biscuits/${id}/stock`, payload);
+      setSuccess(successMessage);
+      setRestockValues((prev) => ({ ...prev, [id]: '' }));
+      setBiscuits((prev) => prev.map((b) => (
+        b._id === id ? response.data.data.biscuit : b
+      )));
+    } catch (err) {
+      setError(err.response?.data?.message || 'Erreur lors de la mise à jour du stock');
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const handleToggleDisponible = async (biscuit) => {
+    setUpdatingId(biscuit._id);
+    setError('');
+    setSuccess('');
+    try {
+      const response = await api.patch(`/biscuits/${biscuit._id}/disponible`, {
+        disponible: !biscuit.disponible,
+      });
+      setSuccess(response.data.message || 'Statut mis à jour');
+      setBiscuits((prev) => prev.map((b) => (
+        b._id === biscuit._id ? response.data.data.biscuit : b
+      )));
+    } catch (err) {
+      setError(err.response?.data?.message || 'Erreur lors du changement de statut');
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const getStockClass = (stock) => {
+    if (stock <= 0) return 'stock-empty';
+    if (stock <= 10) return 'stock-low';
+    return 'stock-ok';
   };
 
   const handleDelete = async (id) => {
@@ -306,18 +351,93 @@ const AdminBiscuits = () => {
           <p>Aucun biscuit disponible</p>
         ) : (
           biscuits.map((biscuit) => (
-            <div key={biscuit._id} className="biscuit-item">
+            <div
+              key={biscuit._id}
+              className={`biscuit-item ${!biscuit.disponible || biscuit.stock <= 0 ? 'biscuit-item-indisponible' : ''}`}
+            >
               <div className="biscuit-info">
                 <h3>{biscuit.nom}</h3>
                 {biscuit.description && <p className="biscuit-description">{biscuit.description}</p>}
                 <p className="biscuit-price">{biscuit.prix} $</p>
                 {biscuit.saveur && <p className="biscuit-saveur">Saveur: {biscuit.saveur}</p>}
-                <p className="biscuit-stock">Stock: {biscuit.stock || 0}</p>
-                <p className={`biscuit-status ${biscuit.disponible ? 'available' : 'unavailable'}`}>
-                  {biscuit.disponible ? '✓ Disponible' : '✗ Indisponible'}
+                <p className={`biscuit-stock ${getStockClass(biscuit.stock || 0)}`}>
+                  Stock : <strong>{biscuit.stock || 0}</strong>
+                  {biscuit.stock <= 0 && ' — Rupture de stock'}
+                  {biscuit.stock > 0 && biscuit.stock <= 10 && ' — Stock bas'}
+                </p>
+                <p className={`biscuit-status ${biscuit.disponible && biscuit.stock > 0 ? 'available' : 'unavailable'}`}>
+                  {biscuit.disponible && biscuit.stock > 0 ? '✓ En vente' : '✗ Indisponible'}
                 </p>
               </div>
+
+              <div className="biscuit-stock-panel">
+                <h4>Gestion du stock</h4>
+                <div className="stock-quick-actions">
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    disabled={updatingId === biscuit._id}
+                    onClick={() => handleStockUpdate(biscuit._id, { ajout: 10 }, `+10 ajoutés au stock de ${biscuit.nom}`)}
+                  >
+                    +10
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    disabled={updatingId === biscuit._id}
+                    onClick={() => handleStockUpdate(biscuit._id, { ajout: 30 }, `+30 ajoutés au stock de ${biscuit.nom}`)}
+                  >
+                    +30
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-danger btn-sm"
+                    disabled={updatingId === biscuit._id}
+                    onClick={() => handleStockUpdate(biscuit._id, { stock: 0 }, `${biscuit.nom} marqué en rupture de stock`)}
+                  >
+                    Rupture (0)
+                  </button>
+                </div>
+                <div className="stock-restock-row">
+                  <input
+                    type="number"
+                    min="1"
+                    placeholder="Quantité à ajouter"
+                    value={restockValues[biscuit._id] ?? ''}
+                    onChange={(e) => setRestockValues((prev) => ({
+                      ...prev,
+                      [biscuit._id]: e.target.value,
+                    }))}
+                    className="stock-restock-input"
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    disabled={updatingId === biscuit._id || !restockValues[biscuit._id]}
+                    onClick={() => {
+                      const ajout = parseInt(restockValues[biscuit._id], 10);
+                      if (!ajout || ajout <= 0) return;
+                      handleStockUpdate(
+                        biscuit._id,
+                        { ajout },
+                        `+${ajout} ajoutés au stock de ${biscuit.nom}`,
+                      );
+                    }}
+                  >
+                    Restock
+                  </button>
+                </div>
+              </div>
+
               <div className="biscuit-actions">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  disabled={updatingId === biscuit._id || (biscuit.stock <= 0 && !biscuit.disponible)}
+                  onClick={() => handleToggleDisponible(biscuit)}
+                >
+                  {biscuit.disponible && biscuit.stock > 0 ? 'Retirer de la vente' : 'Remettre en vente'}
+                </button>
                 <button
                   className="btn btn-primary"
                   type="button"

@@ -2,7 +2,7 @@ import express from 'express';
 import { body, validationResult } from 'express-validator';
 import HoraireRamassage from '../models/HoraireRamassage.model.js';
 import { authenticate, isAdmin } from '../middleware/auth.middleware.js';
-import { buildPointRamassage, genererHeures, HEURE_REGEX, collectDatesFromHoraire, horaireCorrespondADate, formatJoursSemaine, sanitizeLieuPourClient } from '../utils/horaireHelpers.js';
+import { buildPointRamassage, genererHeures, HEURE_REGEX, collectDatesFromHoraire, horaireCorrespondADate, formatJoursSemaine, sanitizeLieuPourClient, validerHeures } from '../utils/horaireHelpers.js';
 
 const router = express.Router();
 
@@ -131,8 +131,14 @@ router.get('/all', authenticate, isAdmin, async (req, res) => {
   }
 });
 
-// @route   POST /api/horaires
-router.post('/', authenticate, isAdmin, [
+const resolveHeures = (body) => {
+  if (Array.isArray(body.heures) && body.heures.length > 0) {
+    return validerHeures(body.heures);
+  }
+  return validerHeures(genererHeures(body.heureDebut, body.heureFin, Number(body.intervalleMinutes || 30)));
+};
+
+const reglesHoraire = [
   body('ville').trim().notEmpty().withMessage('La ville est requise'),
   body('adresse').trim().notEmpty().withMessage('L\'adresse est requise'),
   body('joursSemaine').isArray({ min: 1 }).withMessage('Sélectionnez au moins un jour'),
@@ -140,7 +146,13 @@ router.post('/', authenticate, isAdmin, [
   body('heureDebut').matches(HEURE_REGEX).withMessage('Heure de début invalide (HH:MM)'),
   body('heureFin').matches(HEURE_REGEX).withMessage('Heure de fin invalide (HH:MM)'),
   body('intervalleMinutes').optional().isInt({ min: 15, max: 120 }).withMessage('Intervalle invalide'),
-], async (req, res) => {
+  body('heures').optional().isArray({ min: 1 }).withMessage('Au moins un créneau horaire est requis'),
+  body('heures.*').optional().matches(HEURE_REGEX).withMessage('Créneau horaire invalide (HH:MM)'),
+  body('disponible').optional().isBoolean().withMessage('disponible doit être un booléen'),
+];
+
+// @route   POST /api/horaires
+router.post('/', authenticate, isAdmin, reglesHoraire, async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -165,7 +177,7 @@ router.post('/', authenticate, isAdmin, [
 
     let heures;
     try {
-      heures = genererHeures(heureDebut, heureFin, Number(intervalleMinutes));
+      heures = resolveHeures(req.body);
     } catch (err) {
       return res.status(400).json({ success: false, message: err.message });
     }
@@ -193,6 +205,103 @@ router.post('/', authenticate, isAdmin, [
       success: true,
       message: 'Horaire créé/mis à jour avec succès',
       data: { horaire: enrichHoraire(horaire) },
+    });
+  } catch (error) {
+    console.error('Erreur:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Erreur serveur',
+    });
+  }
+});
+
+// @route   PUT /api/horaires/:id
+// @desc    Modifier une plage horaire existante
+// @access  Private/Admin
+router.put('/:id', authenticate, isAdmin, reglesHoraire, async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Erreurs de validation',
+        errors: errors.array(),
+      });
+    }
+
+    const horaire = await HoraireRamassage.findById(req.params.id);
+    if (!horaire) {
+      return res.status(404).json({ success: false, message: 'Horaire non trouvé' });
+    }
+
+    const {
+      ville,
+      adresse,
+      joursSemaine,
+      heureDebut,
+      heureFin,
+      intervalleMinutes = 30,
+      disponible = true,
+    } = req.body;
+
+    const joursUniques = [...new Set(joursSemaine.map(Number))].sort((a, b) => a - b);
+
+    let heures;
+    try {
+      heures = resolveHeures(req.body);
+    } catch (err) {
+      return res.status(400).json({ success: false, message: err.message });
+    }
+
+    const pointRamassage = buildPointRamassage(ville, adresse);
+
+    if (pointRamassage !== horaire.pointRamassage) {
+      const conflit = await HoraireRamassage.findOne({
+        pointRamassage,
+        _id: { $ne: horaire._id },
+      });
+      if (conflit) {
+        return res.status(400).json({
+          success: false,
+          message: 'Un autre point de ramassage existe déjà avec cette ville et adresse',
+        });
+      }
+    }
+
+    horaire.pointRamassage = pointRamassage;
+    horaire.ville = ville.trim();
+    horaire.adresse = adresse.trim();
+    horaire.joursSemaine = joursUniques;
+    horaire.heureDebut = heureDebut;
+    horaire.heureFin = heureFin;
+    horaire.intervalleMinutes = Number(intervalleMinutes);
+    horaire.heures = heures;
+    horaire.disponible = disponible;
+
+    await HoraireRamassage.updateOne(
+      { _id: horaire._id },
+      {
+        $set: {
+          pointRamassage: horaire.pointRamassage,
+          ville: horaire.ville,
+          adresse: horaire.adresse,
+          joursSemaine: horaire.joursSemaine,
+          heureDebut: horaire.heureDebut,
+          heureFin: horaire.heureFin,
+          intervalleMinutes: horaire.intervalleMinutes,
+          heures: horaire.heures,
+          disponible: horaire.disponible,
+        },
+        $unset: { date: '' },
+      },
+    );
+
+    const updated = await HoraireRamassage.findById(horaire._id);
+
+    res.json({
+      success: true,
+      message: 'Horaire mis à jour avec succès',
+      data: { horaire: enrichHoraire(updated) },
     });
   } catch (error) {
     console.error('Erreur:', error);

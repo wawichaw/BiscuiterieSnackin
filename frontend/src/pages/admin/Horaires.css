@@ -38,6 +38,133 @@
   box-shadow: 0 4px 16px rgba(160, 22, 43, 0.25);
 }
 
+.horaire-form-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.horaire-form-header h2 {
+  margin: 0;
+}
+
+.horaire-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.jours-selectionnes {
+  margin: 10px 0 0;
+  font-size: 14px;
+  color: var(--cherry);
+  font-weight: 600;
+}
+
+.heures-section {
+  padding: 20px;
+  background: #fafafa;
+  border-radius: 12px;
+  border: 1px solid rgba(160, 22, 43, 0.1);
+}
+
+.heures-badges-editable {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+  min-height: 40px;
+}
+
+.heures-vides {
+  margin: 0;
+  color: #888;
+  font-size: 14px;
+  font-style: italic;
+}
+
+.heure-badge-editable {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px 6px 12px;
+  background: white;
+  border: 2px solid rgba(160, 22, 43, 0.2);
+  border-radius: 8px;
+  font-weight: 600;
+  color: #333;
+}
+
+.heure-badge-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: #fee;
+  color: #c33;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.heure-badge-remove:hover {
+  background: #fcc;
+}
+
+.ajouter-heure-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.heure-ajout-input {
+  width: auto;
+  min-width: 140px;
+  flex: 0 0 auto;
+}
+
+.checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.horaire-card.horaire-inactif {
+  opacity: 0.75;
+  background: #f9f9f9;
+}
+
+.horaire-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.horaire-card-actions .btn {
+  flex: 1;
+  min-width: 120px;
+}
+
+.btn-danger-inline {
+  background: #fee;
+  color: #c33;
+  border: 1px solid #fcc;
+}
+
+.btn-danger-inline:hover {
+  background: #fcc;
+}
+
 .horaire-form {
   background: white;
   padding: 30px;
@@ -354,6 +481,19 @@
 
   .horaires-grid {
     grid-template-columns: 1fr;
+  }
+
+  .ajouter-heure-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .heure-ajout-input {
+    width: 100%;
+  }
+
+  .horaire-card-actions .btn {
+    flex: 1 1 100%;
   }
 }
 

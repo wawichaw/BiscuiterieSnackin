@@ -1,6 +1,7 @@
 import Commande from '../models/Commande.model.js';
 import stripe from '../config/stripe.js';
 import { getInfosRamassagePourEmail } from './ramassage.service.js';
+import { decrementerStockCommande } from './stock.service.js';
 
 const extrasEmailRamassage = async (commande) => {
   if (commande.typeReception !== 'ramassage') return {};
@@ -100,6 +101,8 @@ export const finaliserCommandeApresPaiement = async (paymentIntentId) => {
       commande,
     };
   }
+
+  await decrementerStockCommande(commande.boites);
 
   commande.paiementConfirme = true;
   commande.statut = 'en_attente';

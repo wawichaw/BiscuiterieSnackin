@@ -101,6 +101,205 @@
   gap: 20px;
 }
 
+.jours-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.jour-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  text-align: left;
+  width: 100%;
+  padding: 24px;
+  background: white;
+  border: 2px solid rgba(160, 22, 43, 0.12);
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 16px rgba(160, 22, 43, 0.06);
+}
+
+.jour-card:hover {
+  border-color: var(--cherry);
+  box-shadow: 0 6px 20px rgba(160, 22, 43, 0.15);
+  transform: translateY(-2px);
+}
+
+.jour-card.jour-aujourdhui {
+  border-color: var(--cherry);
+  background: #fff9fa;
+}
+
+.jour-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.jour-card-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--cherry);
+  text-transform: capitalize;
+}
+
+.jour-badge-aujourdhui {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--cherry);
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.jour-card-count {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #333;
+}
+
+.jour-card-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.jour-stat {
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.jour-stat-attente {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.jour-stat-traitement {
+  background: #d1ecf1;
+  color: #0c5460;
+}
+
+.jour-stat-completee {
+  background: #d4edda;
+  color: #155724;
+}
+
+.jour-card-lieux {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  width: 100%;
+  font-size: 14px;
+  color: #555;
+  line-height: 1.6;
+}
+
+.jour-card-action {
+  margin-top: auto;
+  color: var(--cherry);
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.btn-retour-jours {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 20px;
+  padding: 10px 18px;
+  border: 2px solid rgba(160, 22, 43, 0.3);
+  border-radius: 12px;
+  background: white;
+  color: var(--cherry);
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-retour-jours:hover {
+  background: #fff5f7;
+  border-color: var(--cherry);
+}
+
+.jour-detail-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 28px;
+  padding: 20px 24px;
+  background: white;
+  border-radius: 16px;
+  border: 2px solid rgba(160, 22, 43, 0.1);
+}
+
+.jour-detail-header h2 {
+  margin: 0;
+  color: var(--cherry);
+  text-transform: capitalize;
+  font-size: clamp(1.25rem, 3vw, 1.75rem);
+}
+
+.jour-detail-count {
+  margin: 0;
+  color: #666;
+  font-size: 15px;
+  width: 100%;
+}
+
+.lieux-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.lieu-section {
+  background: white;
+  border-radius: 16px;
+  border: 2px solid rgba(160, 22, 43, 0.1);
+  overflow: hidden;
+}
+
+.lieu-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 24px;
+  background: #fff5f7;
+  border-bottom: 2px solid rgba(160, 22, 43, 0.08);
+}
+
+.lieu-section-header h3 {
+  margin: 0;
+  color: var(--cherry);
+  font-size: 1.15rem;
+}
+
+.lieu-section-count {
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: white;
+  color: var(--cherry);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.lieu-section .commandes-list {
+  padding: 20px;
+}
+
 .no-commandes {
   text-align: center;
   padding: 40px;
@@ -295,5 +494,14 @@
   .admin-commandes-page .commandes-tab {
     flex: 1;
     min-width: 0;
+  }
+
+  .jours-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .lieu-section-header {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }

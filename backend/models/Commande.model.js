@@ -53,6 +53,18 @@ const commandeSchema = new mongoose.Schema({
     type: String,
     required: false,
   },
+  sourceDecouverte: {
+    type: String,
+    enum: ['instagram', 'facebook', 'tiktok', 'internet', 'bouche_a_oreille', 'evenement', 'autre'],
+    required: true,
+  },
+  sourceDecouverteAutre: {
+    type: String,
+    required: function() {
+      return this.sourceDecouverte === 'autre';
+    },
+    trim: true,
+  },
   boites: [boiteSchema], // Les boîtes commandées
   total: {
     type: Number,

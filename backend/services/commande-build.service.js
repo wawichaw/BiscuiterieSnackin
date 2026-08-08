@@ -38,7 +38,12 @@ export const validerEtCalculerCommande = async (body) => {
     typeReception: body.typeReception,
     methodePaiement: body.methodePaiement || 'en_ligne',
     fraisLivraison,
+    sourceDecouverte: body.sourceDecouverte,
   };
+
+  if (body.sourceDecouverte === 'autre' && body.sourceDecouverteAutre) {
+    commandeData.sourceDecouverteAutre = body.sourceDecouverteAutre.trim();
+  }
 
   if (body.typeReception === 'ramassage') {
     commandeData.pointRamassage = body.pointRamassage;

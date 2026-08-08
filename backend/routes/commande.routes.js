@@ -4,6 +4,7 @@ import Commande from '../models/Commande.model.js';
 import stripe from '../config/stripe.js';
 import { finaliserCommandeApresPaiement } from '../services/commande-paiement.service.js';
 import { validerEtCalculerCommande } from '../services/commande-build.service.js';
+import { verifierStockDisponible, decrementerStockCommande } from '../services/stock.service.js';
 import { authenticate, isAdmin } from '../middleware/auth.middleware.js';
 import { getInfosRamassagePourEmail } from '../services/ramassage.service.js';
 
@@ -155,6 +156,15 @@ const reglesCommandeCommunes = [
   body('methodePaiement').equals('en_ligne').withMessage('Seul le paiement en ligne est accepté'),
   body('visiteurNom').if((value, { req }) => !req.userId).notEmpty().withMessage('Le nom est requis pour les commandes en mode visiteur'),
   body('visiteurEmail').if((value, { req }) => !req.userId).isEmail().withMessage('Un email valide est requis pour les commandes en mode visiteur'),
+  body('sourceDecouverte')
+    .notEmpty().withMessage('Veuillez indiquer comment vous nous avez trouvé')
+    .isIn(['instagram', 'facebook', 'tiktok', 'internet', 'bouche_a_oreille', 'evenement', 'autre'])
+    .withMessage('Source de découverte invalide'),
+  body('sourceDecouverteAutre')
+    .if((value, { req }) => req.body.sourceDecouverte === 'autre')
+    .trim()
+    .notEmpty()
+    .withMessage('Veuillez préciser comment vous nous avez trouvé'),
 ];
 
 // @route   POST /api/commandes/preparer
@@ -172,6 +182,7 @@ router.post('/preparer', optionalAuth, reglesCommandeCommunes, async (req, res) 
     }
 
     const { commandeData, total } = await validerEtCalculerCommande(req.body);
+    await verifierStockDisponible(req.body.boites);
 
     commandeData.statut = 'en_attente';
     commandeData.paiementConfirme = false;
@@ -185,6 +196,11 @@ router.post('/preparer', optionalAuth, reglesCommandeCommunes, async (req, res) 
       if (req.body.visiteurTelephone) {
         commandeData.visiteurTelephone = req.body.visiteurTelephone;
       }
+    }
+
+    commandeData.sourceDecouverte = req.body.sourceDecouverte;
+    if (req.body.sourceDecouverte === 'autre') {
+      commandeData.sourceDecouverteAutre = req.body.sourceDecouverteAutre?.trim();
     }
 
     if (Math.abs(total - Number(req.body.total)) > 0.01) {
@@ -351,6 +367,9 @@ router.post('/', optionalAuth, [
         commandeData.visiteurTelephone = req.body.visiteurTelephone;
       }
     }
+
+    await verifierStockDisponible(req.body.boites);
+    await decrementerStockCommande(req.body.boites);
 
     const commande = await Commande.create(commandeData);
 
