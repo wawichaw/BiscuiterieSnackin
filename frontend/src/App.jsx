@@ -24,6 +24,8 @@ const AdminCommentaires = lazy(() => import('./pages/admin/Commentaires'));
 const AdminHoraires = lazy(() => import('./pages/admin/Horaires'));
 const AdminGalerie = lazy(() => import('./pages/admin/Galerie'));
 const AdminTarifs = lazy(() => import('./pages/admin/Tarifs'));
+const AdminLienPaiement = lazy(() => import('./pages/admin/AdminLienPaiement'));
+const PayerCommande = lazy(() => import('./pages/PayerCommande'));
 
 function RouteFallback() {
   return (
@@ -113,6 +115,7 @@ function App() {
 
             {/* Public route - Commander accessible sans connexion */}
             <Route path="/commander" element={<Commander />} />
+            <Route path="/payer/:id" element={<PayerCommande />} />
 
             {/* Protected routes */}
             <Route
@@ -186,6 +189,15 @@ function App() {
               element={
                 <AdminRoute>
                   <AdminTarifs />
+                </AdminRoute>
+              }
+            />
+
+            <Route
+              path="/admin/lien-paiement"
+              element={
+                <AdminRoute>
+                  <AdminLienPaiement />
                 </AdminRoute>
               }
             />

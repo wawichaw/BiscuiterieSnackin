@@ -156,6 +156,19 @@ const commandeSchema = new mongoose.Schema({
     type: String,
     default: null,
   },
+  /** Commande créée par l'admin avec lien de paiement envoyé au client */
+  creeParAdmin: {
+    type: Boolean,
+    default: false,
+  },
+  tokenPaiement: {
+    type: String,
+    default: null,
+  },
+  tokenPaiementExpire: {
+    type: Date,
+    default: null,
+  },
   archivee: {
     type: Boolean,
     default: false,

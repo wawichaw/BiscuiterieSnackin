@@ -63,17 +63,19 @@ export const validerEtCalculerCommande = async (body) => {
     });
     const horaire = horaires.find((h) => horaireCorrespondADate(h, dateIso));
 
-    if (!horaire) {
+    if (!horaire && !body.skipHoraireValidation) {
       throw new Error('Point ou date de ramassage non disponible');
     }
 
-    const parametres = await getParametresCommande();
-    validerRamassageAutorise({
-      dateIso,
-      heure: body.heureRamassage,
-      parametres,
-      heuresConfigurees: horaire.heures,
-    });
+    if (!body.skipHoraireValidation) {
+      const parametres = await getParametresCommande();
+      validerRamassageAutorise({
+        dateIso,
+        heure: body.heureRamassage,
+        parametres,
+        heuresConfigurees: horaire?.heures || [],
+      });
+    }
 
     commandeData.pointRamassage = body.pointRamassage;
     commandeData.dateRamassage = dateRamassage;

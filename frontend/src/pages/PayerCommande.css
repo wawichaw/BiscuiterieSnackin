@@ -1,0 +1,136 @@
+.payer-commande-page {
+  max-width: 960px;
+  margin: 32px auto 64px;
+  padding: 0 20px;
+}
+
+.payer-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.payer-header h1 {
+  color: var(--cherry);
+  margin: 0 0 8px;
+}
+
+.payer-header p {
+  color: #555;
+  margin: 0;
+}
+
+.payer-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+  align-items: start;
+}
+
+@media (max-width: 768px) {
+  .payer-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.payer-resume,
+.payer-stripe {
+  background: #fff;
+  border: 1px solid rgba(160, 22, 43, 0.12);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+}
+
+.payer-resume h2,
+.payer-stripe h2 {
+  margin: 0 0 16px;
+  font-size: 1.1rem;
+  color: var(--cherry);
+}
+
+.payer-boite {
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #eee;
+}
+
+.payer-boite ul {
+  margin: 8px 0 0 20px;
+  padding: 0;
+}
+
+.payer-ramassage {
+  margin: 16px 0;
+  padding: 12px;
+  background: #fafafa;
+  border-radius: 8px;
+}
+
+.payer-ramassage p {
+  margin: 4px 0;
+}
+
+.payer-total {
+  font-size: 1.25rem;
+  text-align: right;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 2px solid var(--cherry);
+}
+
+.payer-loading,
+.payer-error-box,
+.payer-success-box {
+  text-align: center;
+  padding: 48px 24px;
+  max-width: 480px;
+  margin: 48px auto;
+}
+
+.payer-error-box h1,
+.payer-success-box h1 {
+  color: var(--cherry);
+}
+
+.success-icon {
+  width: 64px;
+  height: 64px;
+  background: #22c55e;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  margin: 0 auto 20px;
+}
+
+.success-detail {
+  color: #666;
+  margin-bottom: 24px;
+}
+
+.payer-inline-error {
+  margin-top: 12px;
+  padding: 10px;
+  background: #fee;
+  color: #c33;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.payer-commande-page .btn {
+  display: inline-block;
+  padding: 12px 24px;
+  background: var(--cherry);
+  color: white;
+  text-decoration: none;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.payer-commande-page .btn:hover {
+  opacity: 0.9;
+}

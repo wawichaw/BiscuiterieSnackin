@@ -7,6 +7,12 @@ import { validerEtCalculerCommande } from '../services/commande-build.service.js
 import { verifierStockDisponible, decrementerStockCommande } from '../services/stock.service.js';
 import { authenticate, isAdmin } from '../middleware/auth.middleware.js';
 import { getInfosRamassagePourEmail } from '../services/ramassage.service.js';
+import {
+  genererTokenPaiement,
+  getExpirationTokenPaiement,
+  construireLienPaiement,
+  tokenPaiementValide,
+} from '../services/lien-paiement.service.js';
 
 const router = express.Router();
 
@@ -70,9 +76,11 @@ router.get('/', authenticate, async (req, res) => {
         filtre.archivee = { $ne: true };
       }
       // Masquer les commandes en ligne non payées (abandons de paiement)
+      // Sauf les liens admin en attente de paiement
       filtre.$or = [
         { paiementConfirme: true },
         { methodePaiement: 'sur_place' },
+        { creeParAdmin: true, paiementConfirme: false },
       ];
 
       commandes = await Commande.find(filtre)
@@ -102,6 +110,48 @@ router.get('/', authenticate, async (req, res) => {
       success: false,
       message: 'Erreur serveur',
     });
+  }
+});
+
+// @route   GET /api/commandes/payer/:id
+// @desc    Détails d'une commande pour la page de paiement (lien admin)
+// @access  Public (token requis)
+router.get('/payer/:id', async (req, res) => {
+  try {
+    const { token } = req.query;
+    if (!token) {
+      return res.status(400).json({ success: false, message: 'Lien de paiement invalide' });
+    }
+
+    const commande = await Commande.findById(req.params.id)
+      .populate('boites.saveurs.biscuit');
+
+    if (!commande || !tokenPaiementValide(commande, token)) {
+      return res.status(404).json({
+        success: false,
+        message: 'Lien de paiement invalide ou expiré',
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        commande: {
+          _id: commande._id,
+          visiteurNom: commande.visiteurNom,
+          total: commande.total,
+          boites: commande.boites,
+          typeReception: commande.typeReception,
+          pointRamassage: commande.pointRamassage,
+          dateRamassage: commande.dateRamassage,
+          heureRamassage: commande.heureRamassage,
+          paiementConfirme: commande.paiementConfirme,
+        },
+      },
+    });
+  } catch (error) {
+    console.error('Erreur payer commande:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
   }
 });
 
@@ -166,6 +216,144 @@ const reglesCommandeCommunes = [
     .notEmpty()
     .withMessage('Veuillez préciser comment vous nous avez trouvé'),
 ];
+
+const reglesLienPaiementAdmin = [
+  body('boites').isArray({ min: 1 }).withMessage('Au moins une boîte est requise'),
+  body('boites.*.taille').isIn([4, 6, 12]).withMessage('La taille doit être 4, 6 ou 12'),
+  body('boites.*.prix').isFloat({ min: 0 }).withMessage('Prix de boîte invalide'),
+  body('boites.*.saveurs').isArray().withMessage('Les saveurs doivent être un tableau'),
+  body('typeReception').equals('ramassage').withMessage('Seul le ramassage est disponible'),
+  body('pointRamassage').trim().notEmpty().withMessage('Point de ramassage requis'),
+  body('dateRamassage').notEmpty().withMessage('La date de ramassage est requise'),
+  body('heureRamassage').notEmpty().withMessage('L\'heure de ramassage est requise'),
+  body('visiteurNom').trim().notEmpty().withMessage('Le nom du client est requis'),
+  body('visiteurEmail').isEmail().withMessage('Un email valide est requis'),
+  body('visiteurTelephone').optional().trim(),
+  body('total').isFloat({ min: 0 }).withMessage('Total invalide'),
+  body('envoyerEmail').optional().isBoolean(),
+];
+
+// @route   POST /api/commandes/admin/lien-paiement
+// @desc    Créer une commande admin et générer un lien de paiement pour le client
+// @access  Private/Admin
+router.post('/admin/lien-paiement', authenticate, isAdmin, reglesLienPaiementAdmin, async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Erreurs de validation',
+        errors: errors.array(),
+      });
+    }
+
+    const bodyAvecFlags = {
+      ...req.body,
+      methodePaiement: 'en_ligne',
+      sourceDecouverte: 'autre',
+      sourceDecouverteAutre: 'Lien de paiement admin',
+      skipHoraireValidation: true,
+    };
+
+    const { commandeData, total } = await validerEtCalculerCommande(bodyAvecFlags);
+    await verifierStockDisponible(req.body.boites);
+
+    if (Math.abs(total - Number(req.body.total)) > 0.01) {
+      return res.status(400).json({
+        success: false,
+        message: 'Le total ne correspond pas au montant calculé',
+      });
+    }
+
+    const token = genererTokenPaiement();
+
+    commandeData.statut = 'en_attente';
+    commandeData.paiementConfirme = false;
+    commandeData.methodePaiement = 'en_ligne';
+    commandeData.visiteurNom = req.body.visiteurNom.trim();
+    commandeData.visiteurEmail = req.body.visiteurEmail.trim().toLowerCase();
+    if (req.body.visiteurTelephone) {
+      commandeData.visiteurTelephone = req.body.visiteurTelephone.trim();
+    }
+    commandeData.sourceDecouverte = 'autre';
+    commandeData.sourceDecouverteAutre = 'Lien de paiement admin';
+    commandeData.total = total;
+    commandeData.creeParAdmin = true;
+    commandeData.tokenPaiement = token;
+    commandeData.tokenPaiementExpire = getExpirationTokenPaiement();
+
+    const commande = await Commande.create(commandeData);
+    await commande.populate('boites.saveurs.biscuit');
+
+    const lienPaiement = construireLienPaiement(commande._id, token);
+
+    let emailEnvoye = false;
+    if (req.body.envoyerEmail !== false) {
+      try {
+        const { envoyerEmailLienPaiement } = await import('../services/email.service.js');
+        const ramassageExtras = await extrasEmailRamassage(commande);
+        const result = await envoyerEmailLienPaiement({
+          commande,
+          lienPaiement,
+          ...ramassageExtras,
+        });
+        emailEnvoye = result.success;
+      } catch (err) {
+        console.error('Erreur envoi email lien paiement:', err);
+      }
+    }
+
+    res.status(201).json({
+      success: true,
+      message: emailEnvoye
+        ? 'Commande créée et lien envoyé par courriel'
+        : 'Commande créée — copiez le lien pour l\'envoyer au client',
+      data: {
+        commande,
+        lienPaiement,
+        emailEnvoye,
+      },
+    });
+  } catch (error) {
+    console.error('Erreur lien paiement admin:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Erreur serveur',
+    });
+  }
+});
+
+// @route   POST /api/commandes/admin/lien-paiement/:id/renvoyer
+// @desc    Renvoyer le courriel avec le lien de paiement
+// @access  Private/Admin
+router.post('/admin/lien-paiement/:id/renvoyer', authenticate, isAdmin, async (req, res) => {
+  try {
+    const commande = await Commande.findById(req.params.id).populate('boites.saveurs.biscuit');
+    if (!commande) {
+      return res.status(404).json({ success: false, message: 'Commande non trouvée' });
+    }
+    if (commande.paiementConfirme) {
+      return res.status(400).json({ success: false, message: 'Cette commande est déjà payée' });
+    }
+    if (!commande.creeParAdmin || !commande.tokenPaiement) {
+      return res.status(400).json({ success: false, message: 'Cette commande n\'a pas de lien de paiement' });
+    }
+
+    const lienPaiement = construireLienPaiement(commande._id, commande.tokenPaiement);
+    const { envoyerEmailLienPaiement } = await import('../services/email.service.js');
+    const ramassageExtras = await extrasEmailRamassage(commande);
+    const result = await envoyerEmailLienPaiement({ commande, lienPaiement, ...ramassageExtras });
+
+    if (!result.success) {
+      return res.status(500).json({ success: false, message: result.message || 'Échec de l\'envoi' });
+    }
+
+    res.json({ success: true, message: 'Courriel renvoyé au client', data: { lienPaiement } });
+  } catch (error) {
+    console.error('Erreur renvoi lien:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+});
 
 // @route   POST /api/commandes/preparer
 // @desc    Créer une commande en attente de paiement (avant Stripe — Klarna, Link, carte)

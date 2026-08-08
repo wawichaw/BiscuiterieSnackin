@@ -578,5 +578,98 @@ L'équipe Snackin'
   }
 };
 
+/**
+ * Envoie au client un lien de paiement pour une commande préparée par l'admin.
+ */
+export const envoyerEmailLienPaiement = async ({ commande, lienPaiement, villeRamassage, adresseRamassage }) => {
+  try {
+    const hasSendGrid = !!process.env.SENDGRID_API_KEY;
+    const hasResend = !!process.env.RESEND_API_KEY;
+    const hasSmtp = !!(process.env.SMTP_USER && process.env.SMTP_PASSWORD);
+    if (!hasSendGrid && !hasResend && !hasSmtp) {
+      console.warn('⚠️ Email lien paiement non envoyé: aucun service email configuré.');
+      return { success: false, message: 'Aucun service email configuré' };
+    }
+
+    const to = commande.visiteurEmail;
+    const nomClient = commande.visiteurNom || 'Client';
+    const numeroCommande = commande._id.toString().slice(-6);
+    const boites = commande.boites || [];
+
+    const dateRamassage = commande.dateRamassage
+      ? new Date(commande.dateRamassage).toLocaleDateString('fr-FR', {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+        })
+      : 'N/A';
+
+    const villeLabel = villeRamassage
+      || (commande.pointRamassage
+        ? commande.pointRamassage.charAt(0).toUpperCase() + commande.pointRamassage.slice(1)
+        : 'N/A');
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head><meta charset="utf-8"></head>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+          <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: #a0162b; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+              <h1 style="margin: 0;">🍪 Votre commande Snackin' #${numeroCommande}</h1>
+            </div>
+            <div style="background: white; padding: 24px; border: 1px solid #ddd; border-radius: 0 0 8px 8px;">
+              <p>Bonjour ${nomClient},</p>
+              <p>Votre commande est prête ! Cliquez sur le bouton ci-dessous pour payer en ligne de façon sécurisée :</p>
+              <p style="text-align: center; margin: 28px 0;">
+                <a href="${lienPaiement}" style="display: inline-block; padding: 14px 28px; background: #a0162b; color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">
+                  Payer ${Number(commande.total || 0).toFixed(2)} $
+                </a>
+              </p>
+              <p><strong>Ramassage :</strong> ${villeLabel}</p>
+              ${adresseRamassage ? `<p><strong>Adresse :</strong> ${adresseRamassage}</p>` : ''}
+              <p><strong>Date et heure :</strong> ${dateRamassage} à ${commande.heureRamassage || 'N/A'}</p>
+              <h3 style="color: #a0162b; margin-top: 24px;">Votre commande</h3>
+              ${formaterBoitesEmail(boites)}
+              <p style="margin-top: 24px;"><strong>Total : ${Number(commande.total || 0).toFixed(2)} $</strong></p>
+              <p style="color: #666; font-size: 14px;">Ce lien est valide 7 jours. Si le bouton ne fonctionne pas, copiez ce lien dans votre navigateur :<br>
+              <a href="${lienPaiement}">${lienPaiement}</a></p>
+              <p>Merci !<br>L'équipe Snackin'</p>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+
+    const texte = `
+Bonjour ${nomClient},
+
+Votre commande Snackin' #${numeroCommande} est prête.
+
+Payez en ligne ici : ${lienPaiement}
+
+Ramassage : ${villeLabel}
+Date : ${dateRamassage} à ${commande.heureRamassage || 'N/A'}
+
+${formaterBoitesTexte(boites)}
+
+Total : ${Number(commande.total || 0).toFixed(2)} $
+
+Ce lien est valide 7 jours.
+
+Merci !
+L'équipe Snackin'
+    `;
+
+    const subject = `🍪 Snackin' – Payez votre commande #${numeroCommande}`;
+    console.log('📧 Envoi lien paiement à:', to);
+    return await sendEmail(to, subject, texte, html);
+  } catch (error) {
+    console.error('❌ Erreur envoi email lien paiement:', error.message);
+    return { success: false, error: error.message };
+  }
+};
+
 export default { envoyerEmailConfirmation, envoyerEmailRemerciement, envoyerEmailResetMotDePasse, envoyerEmailNotificationAdmin, getAdminEmail };
 

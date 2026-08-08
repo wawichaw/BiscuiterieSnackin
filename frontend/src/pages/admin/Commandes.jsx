@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../../services/api';
 import { libellePointAvecAdresse, libelleVilleDepuisSlug } from '../../utils/ramassage';
 import './Commandes.css';
@@ -119,10 +120,14 @@ const CommandeCard = ({
   onChangerStatut,
   onArchiver,
   onRestaurer,
+  onRenvoyerLien,
   getStatutLabel,
   getProchainStatut,
 }) => {
-  const prochainStatut = vue === 'actives' ? getProchainStatut(commande.statut) : null;
+  const prochainStatut = vue === 'actives' && commande.paiementConfirme !== false
+    ? getProchainStatut(commande.statut)
+    : null;
+  const enAttentePaiement = commande.creeParAdmin && !commande.paiementConfirme;
 
   const dateRamassage = commande.dateRamassage
     ? new Date(commande.dateRamassage).toLocaleDateString('fr-FR', {
@@ -239,9 +244,11 @@ const CommandeCard = ({
         <div className="detail-item">
           <strong>Paiement:</strong>{' '}
           {commande.methodePaiement === 'sur_place' ? 'Sur place' : 'En ligne'}
-          {commande.paiementConfirme && (
+          {commande.paiementConfirme ? (
             <span style={{ color: '#28a745', marginLeft: '8px' }}>✓ Confirmé</span>
-          )}
+          ) : enAttentePaiement ? (
+            <span className="badge-paiement-attente">⏳ En attente de paiement</span>
+          ) : null}
         </div>
       </div>
 
@@ -268,6 +275,29 @@ const CommandeCard = ({
       </div>
 
       <div className="commande-actions">
+        {enAttentePaiement && commande.tokenPaiement && (
+          <>
+            <button
+              type="button"
+              className="btn-statut btn-lien-paiement"
+              onClick={() => {
+                const lien = `${window.location.origin}/payer/${commande._id}?token=${encodeURIComponent(commande.tokenPaiement)}`;
+                navigator.clipboard.writeText(lien);
+              }}
+            >
+              📋 Copier le lien de paiement
+            </button>
+            <button
+              type="button"
+              className="btn-statut btn-renvoyer-lien"
+              onClick={() => onRenvoyerLien(commande._id)}
+              disabled={updating === commande._id}
+            >
+              {updating === commande._id ? 'Envoi...' : '📧 Renvoyer le courriel'}
+            </button>
+          </>
+        )}
+
         {prochainStatut && (
           <button
             type="button"
@@ -404,6 +434,19 @@ const AdminCommandes = () => {
     mettreAJourCommande(commandeId, { archivee: false }, '✅ Commande restaurée dans le suivi actif.');
   };
 
+  const renvoyerLienPaiement = async (commandeId) => {
+    setUpdating(commandeId);
+    setMessage('');
+    try {
+      await api.post(`/commandes/admin/lien-paiement/${commandeId}/renvoyer`);
+      setMessage('✅ Courriel renvoyé au client.');
+    } catch (err) {
+      setMessage(err.response?.data?.message || 'Erreur lors de l\'envoi');
+    } finally {
+      setUpdating(null);
+    }
+  };
+
   const getStatutLabel = (statut) => {
     const labels = {
       en_attente: 'En attente',
@@ -447,6 +490,7 @@ const AdminCommandes = () => {
     onChangerStatut: changerStatut,
     onArchiver: archiverCommande,
     onRestaurer: restaurerCommande,
+    onRenvoyerLien: renvoyerLienPaiement,
     getStatutLabel,
     getProchainStatut,
   };
@@ -462,6 +506,9 @@ const AdminCommandes = () => {
               : 'Historique des commandes complétées et archivées, par jour et par lieu.'}
           </p>
         </div>
+        <Link to="/admin/lien-paiement" className="btn btn-primary btn-lien-paiement-header">
+          🔗 Créer un lien de paiement
+        </Link>
       </div>
 
       <div className="commandes-tabs" role="tablist" aria-label="Filtrer les commandes">

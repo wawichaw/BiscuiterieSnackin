@@ -12,6 +12,32 @@
 
 .commandes-page-header {
   margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.btn-lien-paiement-header {
+  white-space: nowrap;
+  padding: 12px 20px;
+  text-decoration: none;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+.badge-paiement-attente {
+  color: #b45309;
+  margin-left: 8px;
+  font-weight: 600;
+}
+
+.btn-lien-paiement,
+.btn-renvoyer-lien {
+  background: #fff7ed;
+  color: #c2410c;
+  border: 1px solid #fdba74;
 }
 
 .commandes-page-subtitle {
