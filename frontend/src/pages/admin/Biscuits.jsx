@@ -145,7 +145,23 @@ const AdminBiscuits = () => {
     setError('');
     setSuccess('');
     try {
-      const response = await api.patch(`/biscuits/${id}/stock`, payload);
+      const biscuit = biscuits.find((b) => b._id === id);
+      if (!biscuit) {
+        setError('Biscuit introuvable');
+        return;
+      }
+
+      let newStock = biscuit.stock ?? 0;
+      if (typeof payload.ajout === 'number') {
+        newStock = Math.max(0, newStock + payload.ajout);
+      } else if (typeof payload.stock === 'number') {
+        newStock = Math.max(0, payload.stock);
+      }
+
+      const response = await api.put(`/biscuits/${id}`, {
+        stock: newStock,
+        disponible: newStock > 0,
+      });
       setSuccess(successMessage);
       setRestockValues((prev) => ({ ...prev, [id]: '' }));
       setBiscuits((prev) => prev.map((b) => (
@@ -163,10 +179,16 @@ const AdminBiscuits = () => {
     setError('');
     setSuccess('');
     try {
-      const response = await api.patch(`/biscuits/${biscuit._id}/disponible`, {
-        disponible: !biscuit.disponible,
+      const nextDisponible = !biscuit.disponible;
+      if (nextDisponible && (biscuit.stock ?? 0) <= 0) {
+        setError('Impossible d\'activer un biscuit sans stock. Faites un restock d\'abord.');
+        return;
+      }
+
+      const response = await api.put(`/biscuits/${biscuit._id}`, {
+        disponible: nextDisponible,
       });
-      setSuccess(response.data.message || 'Statut mis à jour');
+      setSuccess(nextDisponible ? 'Biscuit activé' : 'Biscuit retiré de la vente');
       setBiscuits((prev) => prev.map((b) => (
         b._id === biscuit._id ? response.data.data.biscuit : b
       )));

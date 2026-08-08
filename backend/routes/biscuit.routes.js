@@ -47,63 +47,6 @@ router.get('/', async (req, res) => {
   }
 });
 
-// @route   GET /api/biscuits/:id
-// @desc    Obtenir un biscuit par ID
-// @access  Public
-router.get('/:id', async (req, res) => {
-  try {
-    const biscuit = await Biscuit.findById(req.params.id);
-    
-    if (!biscuit) {
-      return res.status(404).json({
-        success: false,
-        message: 'Biscuit non trouvé',
-      });
-    }
-
-    res.json({
-      success: true,
-      data: { biscuit },
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Erreur serveur',
-    });
-  }
-});
-
-// @route   POST /api/biscuits
-// @desc    Créer un nouveau biscuit
-// @access  Private/Admin
-router.post('/', authenticate, isAdmin, [
-  body('nom').trim().notEmpty().withMessage('Le nom est requis'),
-  body('prix').isFloat({ min: 0 }).withMessage('Le prix doit être un nombre positif'),
-], async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Erreurs de validation',
-        errors: errors.array(),
-      });
-    }
-
-    const biscuit = await Biscuit.create(req.body);
-    res.status(201).json({
-      success: true,
-      message: 'Biscuit créé avec succès',
-      data: { biscuit },
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Erreur serveur',
-    });
-  }
-});
-
 // @route   PATCH /api/biscuits/:id/stock
 // @desc    Ajuster le stock (restock ou rupture)
 // @access  Private/Admin
@@ -181,6 +124,63 @@ router.patch('/:id/disponible', authenticate, isAdmin, async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+});
+
+// @route   GET /api/biscuits/:id
+// @desc    Obtenir un biscuit par ID
+// @access  Public
+router.get('/:id', async (req, res) => {
+  try {
+    const biscuit = await Biscuit.findById(req.params.id);
+    
+    if (!biscuit) {
+      return res.status(404).json({
+        success: false,
+        message: 'Biscuit non trouvé',
+      });
+    }
+
+    res.json({
+      success: true,
+      data: { biscuit },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Erreur serveur',
+    });
+  }
+});
+
+// @route   POST /api/biscuits
+// @desc    Créer un nouveau biscuit
+// @access  Private/Admin
+router.post('/', authenticate, isAdmin, [
+  body('nom').trim().notEmpty().withMessage('Le nom est requis'),
+  body('prix').isFloat({ min: 0 }).withMessage('Le prix doit être un nombre positif'),
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Erreurs de validation',
+        errors: errors.array(),
+      });
+    }
+
+    const biscuit = await Biscuit.create(req.body);
+    res.status(201).json({
+      success: true,
+      message: 'Biscuit créé avec succès',
+      data: { biscuit },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Erreur serveur',
+    });
   }
 });
 
