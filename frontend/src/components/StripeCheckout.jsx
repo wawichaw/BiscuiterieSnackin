@@ -184,17 +184,25 @@ const CheckoutForm = ({ montant, commandeId, onSuccess, onError, clientSecret })
     expressMethods?.applePay || expressMethods?.googlePay || expressMethods?.link
   );
 
+  const onlyLinkAvailable = Boolean(
+    expressMethods?.link && !expressMethods?.applePay && !expressMethods?.googlePay
+  );
+
+  const walletFallbackApple = expressMethods ? !expressMethods.applePay : true;
+  const walletFallbackGoogle = expressMethods ? !expressMethods.googlePay : true;
+
   return (
     <form onSubmit={handleSubmit} className="stripe-checkout-form">
       <div className="stripe-express-checkout">
         <ExpressCheckoutElement
           options={{
-            buttonTheme: { applePay: 'black' },
-            buttonType: { applePay: 'buy' },
+            business: { name: "Biscuiterie Snackin'" },
+            buttonTheme: { applePay: 'black', googlePay: 'black' },
+            buttonType: { applePay: 'buy', googlePay: 'buy' },
             buttonHeight: 48,
             layout: { maxColumns: 1, maxRows: 3 },
             paymentMethods: {
-              applePay: 'always',
+              applePay: 'auto',
               googlePay: 'auto',
               link: 'auto',
             },
@@ -205,6 +213,17 @@ const CheckoutForm = ({ montant, commandeId, onSuccess, onError, clientSecret })
           onConfirm={handleExpressConfirm}
         />
       </div>
+
+      {onlyLinkAvailable && (
+        <div className="stripe-wallet-hint">
+          <strong>Apple Pay / Google Pay pas encore visibles ?</strong>
+          <p>
+            Link fonctionne tout de suite. Pour Apple Pay et Google Pay, vérifiez votre domaine
+            dans Stripe → <em>Paiements → Domaines de paiement</em> et testez sur
+            {' '}<strong>iPhone Safari</strong> (Apple Pay) ou <strong>Chrome</strong> (Google Pay).
+          </p>
+        </div>
+      )}
 
       {hasExpressCheckout && (
         <div className="stripe-checkout-divider">
@@ -217,8 +236,8 @@ const CheckoutForm = ({ montant, commandeId, onSuccess, onError, clientSecret })
           options={{
             layout: 'accordion',
             wallets: {
-              applePay: 'never',
-              googlePay: 'never',
+              applePay: walletFallbackApple ? 'auto' : 'never',
+              googlePay: walletFallbackGoogle ? 'auto' : 'never',
             },
             fields: {
               billingDetails: {

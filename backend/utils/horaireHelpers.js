@@ -1,3 +1,104 @@
+export const HEURE_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+const TIMEZONE_MONTREAL = 'America/Montreal';
+
+/** Date/heure actuelle en fuseau Montréal. */
+export function getNowMontreal() {
+  return new Date(new Date().toLocaleString('en-US', { timeZone: TIMEZONE_MONTREAL }));
+}
+
+export function parseHeureMinutes(hhmm) {
+  const [h, m] = String(hhmm || '').split(':').map(Number);
+  return h * 60 + m;
+}
+
+export function addDaysToIso(isoDate, days) {
+  const d = parseIsoDateLocal(isoDate);
+  d.setDate(d.getDate() + days);
+  return formatIsoDateLocal(d);
+}
+
+/**
+ * Date la plus tôt commandable selon les règles de cutoff.
+ * Avant l'heure limite → aujourd'hui ; après → pas demain (minimum après-demain).
+ */
+export function getDateMinimumCommande(parametres, now = getNowMontreal()) {
+  const todayIso = formatIsoDateLocal(now);
+
+  if (!parametres?.actif) {
+    return todayIso;
+  }
+
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  const limitMinutes = parseHeureMinutes(parametres.heureLimiteCommande || '11:00');
+
+  if (nowMinutes >= limitMinutes) {
+    return addDaysToIso(todayIso, 2);
+  }
+
+  return todayIso;
+}
+
+export function filtrerDatesDisponibles(dates, parametres, now = getNowMontreal()) {
+  const minDate = getDateMinimumCommande(parametres, now);
+  return dates.filter((d) => d >= minDate);
+}
+
+/** Retire les créneaux trop proches quand la date choisie est aujourd'hui. */
+export function filtrerHeuresDisponibles(heures, dateIso, parametres, now = getNowMontreal()) {
+  if (!parametres?.actif) {
+    return heures;
+  }
+
+  const todayIso = formatIsoDateLocal(now);
+  if (dateIso !== todayIso) {
+    return heures;
+  }
+
+  const delai = parametres.delaiMinimumMinutes ?? 60;
+  if (delai <= 0) {
+    return heures;
+  }
+
+  const minSlotMinutes = now.getHours() * 60 + now.getMinutes() + delai;
+  return heures.filter((h) => parseHeureMinutes(h) >= minSlotMinutes);
+}
+
+export function validerRamassageAutorise({ dateIso, heure, parametres, heuresConfigurees, now = getNowMontreal() }) {
+  const datesAutorisees = filtrerDatesDisponibles([dateIso], parametres, now);
+  if (!datesAutorisees.includes(dateIso)) {
+    const minDate = getDateMinimumCommande(parametres, now);
+    throw new Error(
+      parametres?.actif
+        ? `Les commandes pour cette date ne sont plus acceptées. Choisissez une date à partir du ${formatDateFr(minDate)}.`
+        : 'Date de ramassage non disponible',
+    );
+  }
+
+  if (!heuresConfigurees?.includes(heure)) {
+    throw new Error('Créneau horaire non disponible pour ce point de ramassage');
+  }
+
+  const heuresAutorisees = filtrerHeuresDisponibles(heuresConfigurees, dateIso, parametres, now);
+  if (!heuresAutorisees.includes(heure)) {
+    const delai = parametres?.delaiMinimumMinutes ?? 60;
+    throw new Error(
+      parametres?.actif
+        ? `Ce créneau n'est plus disponible. Commandez au moins ${delai} minutes à l'avance.`
+        : 'Créneau horaire non disponible',
+    );
+  }
+}
+
+function formatDateFr(isoDate) {
+  return parseIsoDateLocal(isoDate).toLocaleDateString('fr-CA', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    timeZone: TIMEZONE_MONTREAL,
+  });
+}
+
 /** Slug stable pour identifier un point de ramassage (ville + adresse). */
 export function buildPointRamassage(ville, adresse) {
   const slug = (s) =>

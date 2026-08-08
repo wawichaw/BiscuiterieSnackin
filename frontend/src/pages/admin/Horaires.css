@@ -378,6 +378,52 @@
   max-width: 720px;
 }
 
+.regles-commande-card {
+  background: #fff;
+  border: 1px solid rgba(160, 22, 43, 0.15);
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 32px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+}
+
+.regles-commande-card h2 {
+  margin: 0 0 8px;
+  font-size: 1.25rem;
+  color: var(--cherry);
+}
+
+.regles-commande-intro {
+  margin: 0 0 20px;
+  color: #555;
+  line-height: 1.5;
+}
+
+.regles-commande-form .regles-actif {
+  display: block;
+  margin-bottom: 20px;
+  font-weight: 600;
+}
+
+.regles-row {
+  margin-bottom: 20px;
+}
+
+.delai-input-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.delai-input {
+  max-width: 120px;
+}
+
+.delai-unite {
+  color: #666;
+  font-size: 14px;
+}
+
 .horaires-empty {
   color: #666;
   text-align: center;

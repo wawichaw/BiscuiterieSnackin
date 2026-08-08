@@ -1,4 +1,12 @@
 export const validerEtCalculerCommande = async (body) => {
+  const {
+    horaireCorrespondADate,
+    validerRamassageAutorise,
+    formatIsoDateLocal,
+  } = await import('../utils/horaireHelpers.js');
+  const { getParametresCommande } = await import('./parametres-commande.service.js');
+  const HoraireRamassage = (await import('../models/HoraireRamassage.model.js')).default;
+
   for (const boite of body.boites) {
     const totalSaveurs = boite.saveurs.reduce((sum, s) => sum + s.quantite, 0);
     if (totalSaveurs !== boite.taille) {
@@ -46,8 +54,29 @@ export const validerEtCalculerCommande = async (body) => {
   }
 
   if (body.typeReception === 'ramassage') {
+    const dateRamassage = new Date(body.dateRamassage);
+    const dateIso = formatIsoDateLocal(dateRamassage);
+
+    const horaires = await HoraireRamassage.find({
+      pointRamassage: body.pointRamassage,
+      disponible: true,
+    });
+    const horaire = horaires.find((h) => horaireCorrespondADate(h, dateIso));
+
+    if (!horaire) {
+      throw new Error('Point ou date de ramassage non disponible');
+    }
+
+    const parametres = await getParametresCommande();
+    validerRamassageAutorise({
+      dateIso,
+      heure: body.heureRamassage,
+      parametres,
+      heuresConfigurees: horaire.heures,
+    });
+
     commandeData.pointRamassage = body.pointRamassage;
-    commandeData.dateRamassage = new Date(body.dateRamassage);
+    commandeData.dateRamassage = dateRamassage;
     commandeData.heureRamassage = body.heureRamassage;
   } else {
     commandeData.villeLivraison = body.villeLivraison;

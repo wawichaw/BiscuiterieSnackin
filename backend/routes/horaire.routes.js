@@ -2,7 +2,8 @@ import express from 'express';
 import { body, validationResult } from 'express-validator';
 import HoraireRamassage from '../models/HoraireRamassage.model.js';
 import { authenticate, isAdmin } from '../middleware/auth.middleware.js';
-import { buildPointRamassage, genererHeures, HEURE_REGEX, collectDatesFromHoraire, horaireCorrespondADate, formatJoursSemaine, sanitizeLieuPourClient, validerHeures } from '../utils/horaireHelpers.js';
+import { buildPointRamassage, genererHeures, HEURE_REGEX, collectDatesFromHoraire, horaireCorrespondADate, formatJoursSemaine, sanitizeLieuPourClient, validerHeures, filtrerDatesDisponibles, filtrerHeuresDisponibles, getNowMontreal, getDateMinimumCommande } from '../utils/horaireHelpers.js';
+import { getParametresCommande, updateParametresCommande } from '../services/parametres-commande.service.js';
 
 const router = express.Router();
 
@@ -32,6 +33,66 @@ const horaireEstActif = (h) => {
   aujourdhui.setHours(0, 0, 0, 0);
   return new Date(h.date) >= aujourdhui;
 };
+
+// @route   GET /api/horaires/regles-commande
+// @desc    Règles de délai pour les commandes (public)
+// @access  Public
+router.get('/regles-commande', async (req, res) => {
+  try {
+    const parametres = await getParametresCommande();
+    const now = getNowMontreal();
+    res.json({
+      success: true,
+      data: {
+        parametres,
+        dateMinimum: getDateMinimumCommande(parametres, now),
+        maintenant: now.toISOString(),
+      },
+    });
+  } catch (error) {
+    console.error('Erreur regles-commande:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+});
+
+// @route   PUT /api/horaires/regles-commande
+// @desc    Modifier les règles de délai (admin)
+// @access  Private/Admin
+router.put('/regles-commande', authenticate, isAdmin, [
+  body('actif').optional().isBoolean().withMessage('actif doit être un booléen'),
+  body('heureLimiteCommande').optional().matches(HEURE_REGEX).withMessage('Heure limite invalide (HH:MM)'),
+  body('delaiMinimumMinutes').optional().isInt({ min: 0, max: 1440 }).withMessage('Délai minimum invalide'),
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Erreurs de validation',
+        errors: errors.array(),
+      });
+    }
+
+    const update = {};
+    if (req.body.actif !== undefined) update.actif = Boolean(req.body.actif);
+    if (req.body.heureLimiteCommande !== undefined) update.heureLimiteCommande = req.body.heureLimiteCommande;
+    if (req.body.delaiMinimumMinutes !== undefined) update.delaiMinimumMinutes = Number(req.body.delaiMinimumMinutes);
+
+    if (Object.keys(update).length === 0) {
+      return res.status(400).json({ success: false, message: 'Aucun paramètre à mettre à jour' });
+    }
+
+    const parametres = await updateParametresCommande(update);
+    res.json({
+      success: true,
+      message: 'Règles de commande mises à jour',
+      data: { parametres },
+    });
+  } catch (error) {
+    console.error('Erreur regles-commande:', error);
+    res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+});
 
 // @route   GET /api/horaires/lieux
 // @desc    Points de ramassage actifs (ville + adresse)
@@ -80,9 +141,11 @@ router.get('/dates', async (req, res) => {
       collectDatesFromHoraire(h, 4).forEach((d) => datesSet.add(d));
     });
 
-    const dates = [...datesSet].sort();
+    const parametres = await getParametresCommande();
+    const now = getNowMontreal();
+    const dates = filtrerDatesDisponibles([...datesSet].sort(), parametres, now);
 
-    res.json({ success: true, data: { dates } });
+    res.json({ success: true, data: { dates, parametres } });
   } catch (error) {
     console.error('Erreur:', error);
     res.status(500).json({ success: false, message: 'Erreur serveur' });
@@ -111,7 +174,11 @@ router.get('/', async (req, res) => {
       return res.json({ success: true, data: { heures: [] } });
     }
 
-    res.json({ success: true, data: { heures: horaire.heures } });
+    const parametres = await getParametresCommande();
+    const now = getNowMontreal();
+    const heures = filtrerHeuresDisponibles(horaire.heures, date, parametres, now);
+
+    res.json({ success: true, data: { heures } });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Erreur serveur' });
   }

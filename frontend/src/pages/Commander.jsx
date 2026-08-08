@@ -879,7 +879,13 @@ const Commander = () => {
                   <label>Heure de ramassage *</label>
                   {heuresDisponibles.length === 0 ? (
                     <div className="no-hours">
-                      <p>Aucun horaire disponible pour cette date. Veuillez choisir une autre date.</p>
+                      <p>
+                        Aucun créneau disponible pour cette date.
+                        {dateRamassage === new Date().toLocaleDateString('en-CA') && (
+                          ' Les créneaux du jour même peuvent être masqués si le délai minimum est dépassé.'
+                        )}
+                        {' '}Veuillez choisir une autre date.
+                      </p>
                     </div>
                   ) : (
                     <select

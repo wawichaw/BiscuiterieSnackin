@@ -48,9 +48,17 @@ const genererHeuresLocales = (heureDebut, heureFin, intervalleMinutes = 30) => {
 
 const trierHeures = (heures = []) => [...new Set(heures)].sort((a, b) => a.localeCompare(b));
 
+const defaultRegles = {
+  actif: true,
+  heureLimiteCommande: '11:00',
+  delaiMinimumMinutes: 60,
+};
+
 const AdminHoraires = () => {
   const [horaires, setHoraires] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [regles, setRegles] = useState(defaultRegles);
+  const [savingRegles, setSavingRegles] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState(defaultForm);
@@ -64,7 +72,39 @@ const AdminHoraires = () => {
 
   useEffect(() => {
     fetchHoraires();
+    fetchRegles();
   }, []);
+
+  const fetchRegles = async () => {
+    try {
+      const response = await api.get('/horaires/regles-commande');
+      const p = response.data?.data?.parametres;
+      if (p) {
+        setRegles({
+          actif: p.actif ?? defaultRegles.actif,
+          heureLimiteCommande: p.heureLimiteCommande ?? defaultRegles.heureLimiteCommande,
+          delaiMinimumMinutes: p.delaiMinimumMinutes ?? defaultRegles.delaiMinimumMinutes,
+        });
+      }
+    } catch (err) {
+      console.error('Erreur regles:', err);
+    }
+  };
+
+  const handleSaveRegles = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+    setSavingRegles(true);
+    try {
+      await api.put('/horaires/regles-commande', regles);
+      setSuccess('Règles de commande enregistrées.');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Erreur lors de l\'enregistrement des règles');
+    } finally {
+      setSavingRegles(false);
+    }
+  };
 
   const fetchHoraires = async () => {
     try {
@@ -268,6 +308,66 @@ const AdminHoraires = () => {
         Configurez chaque point de ramassage : choisissez les jours (ex. seulement le mercredi),
         retirez le samedi si besoin, et ajustez les créneaux un par un ou regénérez-les depuis une plage horaire.
       </p>
+
+      <section className="regles-commande-card">
+        <h2>⏱️ Règles de délai pour les commandes</h2>
+        <p className="regles-commande-intro">
+          Contrôlez quand les clients peuvent commander. Ces règles s'appliquent automatiquement sur la page Commander.
+        </p>
+        <form className="regles-commande-form" onSubmit={handleSaveRegles}>
+          <label className="checkbox-label regles-actif">
+            <input
+              type="checkbox"
+              checked={regles.actif}
+              onChange={(e) => setRegles({ ...regles, actif: e.target.checked })}
+            />
+            {' '}Activer les règles de délai
+          </label>
+
+          <div className="form-row regles-row">
+            <div className="form-group">
+              <label htmlFor="heureLimite">Heure limite pour bloquer demain</label>
+              <input
+                id="heureLimite"
+                type="time"
+                value={regles.heureLimiteCommande}
+                onChange={(e) => setRegles({ ...regles, heureLimiteCommande: e.target.value })}
+                className="form-input"
+                disabled={!regles.actif}
+              />
+              <p className="form-help">
+                Après cette heure, les clients ne peuvent plus commander pour le <strong>lendemain</strong>.
+                Exemple : à 11h01, seules les dates d'après-demain et plus tard sont proposées.
+              </p>
+            </div>
+            <div className="form-group">
+              <label htmlFor="delaiMinimum">Délai minimum avant le ramassage</label>
+              <div className="delai-input-row">
+                <input
+                  id="delaiMinimum"
+                  type="number"
+                  min={0}
+                  max={1440}
+                  step={15}
+                  value={regles.delaiMinimumMinutes}
+                  onChange={(e) => setRegles({ ...regles, delaiMinimumMinutes: Number(e.target.value) })}
+                  className="form-input delai-input"
+                  disabled={!regles.actif}
+                />
+                <span className="delai-unite">minutes</span>
+              </div>
+              <p className="form-help">
+                Pour le jour même, les créneaux trop proches sont masqués.
+                Exemple : à 11h55 avec 60 min de délai → le premier créneau possible est 12h55.
+              </p>
+            </div>
+          </div>
+
+          <button type="submit" className="btn btn-primary" disabled={savingRegles}>
+            {savingRegles ? 'Enregistrement...' : 'Enregistrer les règles'}
+          </button>
+        </form>
+      </section>
 
       {error && <div className="alert alert-error">{error}</div>}
       {success && <div className="alert alert-success">{success}</div>}
