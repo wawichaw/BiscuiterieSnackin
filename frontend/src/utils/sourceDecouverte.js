@@ -12,7 +12,18 @@ export const SOURCE_DECOUVERTE_OPTIONS = Object.entries(SOURCE_DECOUVERTE_LABELS
   ([value, label]) => ({ value, label }),
 );
 
+export const isLienPaiementAdmin = (commande) => Boolean(
+  commande?.creeParAdmin
+  || (
+    commande?.sourceDecouverte === 'autre'
+    && /lien de paiement admin/i.test(commande.sourceDecouverteAutre || '')
+  ),
+);
+
 export const getSourceDecouverteLabel = (commande) => {
+  if (isLienPaiementAdmin(commande)) {
+    return 'Lien de paiement (créé par admin)';
+  }
   if (!commande?.sourceDecouverte) return 'Non renseigné';
   if (commande.sourceDecouverte === 'autre') {
     return commande.sourceDecouverteAutre
@@ -23,14 +34,11 @@ export const getSourceDecouverteLabel = (commande) => {
 };
 
 export const getSourceDecouverteCategorie = (commande) => {
+  if (isLienPaiementAdmin(commande)) {
+    return { key: 'lien_admin', label: 'Lien de paiement (créé par admin)' };
+  }
   if (!commande?.sourceDecouverte) {
     return { key: 'non_renseigne', label: 'Non renseigné' };
-  }
-  if (
-    commande.sourceDecouverte === 'autre'
-    && /lien de paiement admin/i.test(commande.sourceDecouverteAutre || '')
-  ) {
-    return { key: 'lien_admin', label: 'Lien de paiement (admin)' };
   }
   if (commande.sourceDecouverte === 'autre') {
     return { key: 'autre', label: 'Autre' };

@@ -164,8 +164,8 @@ const CommandeCard = ({
         <div className="detail-item">
           <strong>Total:</strong> {commande.total?.toFixed(2) || '0.00'} $
         </div>
-        <div className={`detail-item detail-item-source ${commande.sourceDecouverte ? '' : 'source-manquante'}`}>
-          <strong>Comment nous avez-vous trouvé ?</strong>
+        <div className={`detail-item detail-item-source ${commande.sourceDecouverte && !commande.creeParAdmin ? '' : 'source-manquante'}`}>
+          <strong>{commande.creeParAdmin ? 'Origine de la commande' : 'Comment nous avez-vous trouvé ?'}</strong>
           {getSourceDecouverteLabel(commande)}
         </div>
         <div className="detail-item">

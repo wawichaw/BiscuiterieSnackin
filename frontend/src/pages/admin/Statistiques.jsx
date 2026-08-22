@@ -6,6 +6,7 @@ import {
   SOURCE_DECOUVERTE_LABELS,
   getSourceDecouverteCategorie,
   getSourceDecouverteLabel,
+  isLienPaiementAdmin,
 } from '../../utils/sourceDecouverte';
 import './Statistiques.css';
 
@@ -17,7 +18,6 @@ const SOURCE_ORDER = [
   'bouche_a_oreille',
   'evenement',
   'autre',
-  'lien_admin',
   'non_renseigne',
 ];
 
@@ -29,7 +29,6 @@ const SOURCE_COLORS = {
   bouche_a_oreille: '#d97706',
   evenement: '#7c3aed',
   autre: '#a0162b',
-  lien_admin: '#6b7280',
   non_renseigne: '#9ca3af',
 };
 
@@ -186,27 +185,32 @@ const AdminStatistiques = () => {
     return { totalCommandes, chiffreAffaires, panierMoyen, ramassage };
   }, [commandesFiltrees]);
 
+  const commandesFormulaire = useMemo(
+    () => commandesFiltrees.filter((commande) => !isLienPaiementAdmin(commande)),
+    [commandesFiltrees],
+  );
+
+  const nbLiensAdmin = commandesFiltrees.length - commandesFormulaire.length;
+
   const sources = useMemo(() => {
     const counts = {};
-    for (const commande of commandesFiltrees) {
+    for (const commande of commandesFormulaire) {
       const { key } = getSourceDecouverteCategorie(commande);
       counts[key] = (counts[key] || 0) + 1;
     }
-    const total = commandesFiltrees.length || 1;
+    const total = commandesFormulaire.length || 1;
     const rows = SOURCE_ORDER
       .filter((key) => counts[key])
       .map((key) => ({
         key,
-        label: key === 'lien_admin'
-          ? 'Lien de paiement (admin)'
-          : key === 'non_renseigne'
-            ? 'Non renseigné'
-            : SOURCE_DECOUVERTE_LABELS[key] || key,
+        label: key === 'non_renseigne'
+          ? 'Non renseigné'
+          : SOURCE_DECOUVERTE_LABELS[key] || key,
         count: counts[key],
         pct: Math.round((counts[key] / total) * 1000) / 10,
       }));
     const extra = Object.keys(counts)
-      .filter((key) => !SOURCE_ORDER.includes(key))
+      .filter((key) => !SOURCE_ORDER.includes(key) && key !== 'lien_admin')
       .map((key) => ({
         key,
         label: key,
@@ -214,13 +218,13 @@ const AdminStatistiques = () => {
         pct: Math.round((counts[key] / total) * 1000) / 10,
       }));
     return [...rows, ...extra].sort((a, b) => b.count - a.count);
-  }, [commandesFiltrees]);
+  }, [commandesFormulaire]);
 
   const maxSource = sources[0]?.count || 1;
 
   const autresDetails = useMemo(() => {
     const map = new Map();
-    for (const commande of commandesFiltrees) {
+    for (const commande of commandesFormulaire) {
       if (commande.sourceDecouverte !== 'autre') continue;
       const detail = (commande.sourceDecouverteAutre || 'Non précisé').trim();
       map.set(detail, (map.get(detail) || 0) + 1);
@@ -228,7 +232,7 @@ const AdminStatistiques = () => {
     return [...map.entries()]
       .map(([label, count]) => ({ label, count }))
       .sort((a, b) => b.count - a.count);
-  }, [commandesFiltrees]);
+  }, [commandesFormulaire]);
 
   const lieux = useMemo(() => {
     const map = new Map();
@@ -280,7 +284,7 @@ const AdminStatistiques = () => {
         Téléphone: commande.visiteurTelephone || '',
         'Comment nous a trouvé': getSourceDecouverteLabel(commande),
         'Source (catégorie)': cat.label,
-        'Précision source': commande.sourceDecouverteAutre || '',
+        'Précision source': isLienPaiementAdmin(commande) ? '' : (commande.sourceDecouverteAutre || ''),
         'Type de réception': commande.typeReception === 'ramassage' ? 'Ramassage' : 'Livraison',
         Lieu: libelleVilleDepuisSlug(commande.pointRamassage || commande.villeLivraison) || '',
         'Date ramassage/livraison': dateRdv ? formatDateCourt(dateRdv) : '',
@@ -406,27 +410,38 @@ ${excelSheet('Saveurs', saveursHeaders, saveursRows, saveursTypes)}
           <section className="stats-card">
             <h2>Comment nous ont-elles trouvés ?</h2>
             <p className="stats-card-hint">
-              Réponses du champ « Source » du formulaire de commande.
+              Uniquement les réponses du formulaire de commande (Instagram, Facebook, etc.).
             </p>
-            <div className="stats-bars">
-              {sources.map((source) => (
-                <div key={source.key} className="stats-bar-row">
-                  <span className="stats-bar-label">{source.label}</span>
-                  <div className="stats-bar-track">
-                    <div
-                      className="stats-bar-fill"
-                      style={{
-                        width: `${Math.max(6, (source.count / maxSource) * 100)}%`,
-                        background: SOURCE_COLORS[source.key] || 'var(--cherry)',
-                      }}
-                    />
+            {sources.length === 0 ? (
+              <p className="stats-empty-inline">
+                Aucune réponse de formulaire sur cette période.
+              </p>
+            ) : (
+              <div className="stats-bars">
+                {sources.map((source) => (
+                  <div key={source.key} className="stats-bar-row">
+                    <span className="stats-bar-label">{source.label}</span>
+                    <div className="stats-bar-track">
+                      <div
+                        className="stats-bar-fill"
+                        style={{
+                          width: `${Math.max(6, (source.count / maxSource) * 100)}%`,
+                          background: SOURCE_COLORS[source.key] || 'var(--cherry)',
+                        }}
+                      />
+                    </div>
+                    <span className="stats-bar-value">
+                      {source.count} ({source.pct} %)
+                    </span>
                   </div>
-                  <span className="stats-bar-value">
-                    {source.count} ({source.pct} %)
-                  </span>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
+            {nbLiensAdmin > 0 && (
+              <p className="stats-note-admin">
+                {nbLiensAdmin} commande{nbLiensAdmin > 1 ? 's' : ''} créée{nbLiensAdmin > 1 ? 's' : ''} par lien de paiement admin — ce n’est pas une option du formulaire, donc elles ne sont pas dans ce graphique.
+              </p>
+            )}
             {autresDetails.length > 0 && (
               <div className="stats-autres">
                 <h3>Précisions « Autre »</h3>
