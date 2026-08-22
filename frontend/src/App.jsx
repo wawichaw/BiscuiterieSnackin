@@ -25,6 +25,7 @@ const AdminHoraires = lazy(() => import('./pages/admin/Horaires'));
 const AdminGalerie = lazy(() => import('./pages/admin/Galerie'));
 const AdminTarifs = lazy(() => import('./pages/admin/Tarifs'));
 const AdminLienPaiement = lazy(() => import('./pages/admin/AdminLienPaiement'));
+const AdminStatistiques = lazy(() => import('./pages/admin/Statistiques'));
 const PayerCommande = lazy(() => import('./pages/PayerCommande'));
 
 function RouteFallback() {
@@ -198,6 +199,14 @@ function App() {
               element={
                 <AdminRoute>
                   <AdminLienPaiement />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/statistiques"
+              element={
+                <AdminRoute>
+                  <AdminStatistiques />
                 </AdminRoute>
               }
             />

@@ -19,7 +19,15 @@
   flex-wrap: wrap;
 }
 
-.btn-lien-paiement-header {
+.commandes-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.btn-lien-paiement-header,
+.btn-stats-header {
   white-space: nowrap;
   padding: 12px 20px;
   text-decoration: none;
@@ -407,11 +415,26 @@
   background: #fafafa;
   border-radius: 8px;
   font-size: 14px;
-}.detail-item strong {
+}
+
+.detail-item strong {
   color: var(--cherry);
   display: block;
   margin-bottom: 4px;
-}.commande-boites {
+}
+
+.detail-item-source {
+  background: #fff5f7;
+  border: 1.5px solid rgba(160, 22, 43, 0.2);
+  font-weight: 600;
+}
+
+.detail-item-source.source-manquante {
+  background: #fff8e8;
+  border-color: #f0c36d;
+}
+
+.commande-boites {
   margin-bottom: 20px;
   padding: 16px;
   background: #fff5f7;

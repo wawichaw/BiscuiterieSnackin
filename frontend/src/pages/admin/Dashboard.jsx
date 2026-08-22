@@ -23,6 +23,12 @@ const Dashboard = () => {
           <p>Voir et gérer toutes les commandes</p>
         </Link>
 
+        <Link to="/admin/statistiques" className="dashboard-card">
+          <div className="card-icon">📊</div>
+          <h3>Statistiques</h3>
+          <p>Sources, ventes et export Excel de toutes les commandes</p>
+        </Link>
+
         <Link to="/admin/lien-paiement" className="dashboard-card">
           <div className="card-icon">🔗</div>
           <h3>Lien de paiement</h3>

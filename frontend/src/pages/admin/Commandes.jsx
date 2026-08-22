@@ -2,27 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
 import { libellePointAvecAdresse, libelleVilleDepuisSlug } from '../../utils/ramassage';
+import { getSourceDecouverteLabel } from '../../utils/sourceDecouverte';
 import './Commandes.css';
-
-const SOURCE_DECOUVERTE_LABELS = {
-  instagram: 'Instagram',
-  facebook: 'Facebook',
-  tiktok: 'TikTok',
-  internet: 'Google / Internet',
-  bouche_a_oreille: 'Bouche-à-oreille',
-  evenement: 'Événement / marché',
-  autre: 'Autre',
-};
-
-const getSourceDecouverteLabel = (commande) => {
-  if (!commande?.sourceDecouverte) return 'Non renseigné';
-  if (commande.sourceDecouverte === 'autre') {
-    return commande.sourceDecouverteAutre
-      ? `Autre — ${commande.sourceDecouverteAutre}`
-      : 'Autre';
-  }
-  return SOURCE_DECOUVERTE_LABELS[commande.sourceDecouverte] || commande.sourceDecouverte;
-};
 
 const getJourKey = (commande) => {
   const dateStr = commande.typeReception === 'ramassage'
@@ -183,8 +164,9 @@ const CommandeCard = ({
         <div className="detail-item">
           <strong>Total:</strong> {commande.total?.toFixed(2) || '0.00'} $
         </div>
-        <div className="detail-item">
-          <strong>Comment nous a trouvé :</strong> {getSourceDecouverteLabel(commande)}
+        <div className={`detail-item detail-item-source ${commande.sourceDecouverte ? '' : 'source-manquante'}`}>
+          <strong>Comment nous avez-vous trouvé ?</strong>
+          {getSourceDecouverteLabel(commande)}
         </div>
         <div className="detail-item">
           <strong>Type de réception:</strong>{' '}
@@ -506,9 +488,14 @@ const AdminCommandes = () => {
               : 'Historique des commandes complétées et archivées, par jour et par lieu.'}
           </p>
         </div>
-        <Link to="/admin/lien-paiement" className="btn btn-primary btn-lien-paiement-header">
-          🔗 Créer un lien de paiement
-        </Link>
+        <div className="commandes-header-actions">
+          <Link to="/admin/statistiques" className="btn outline btn-stats-header">
+            📊 Statistiques
+          </Link>
+          <Link to="/admin/lien-paiement" className="btn primary btn-lien-paiement-header">
+            🔗 Créer un lien de paiement
+          </Link>
+        </div>
       </div>
 
       <div className="commandes-tabs" role="tablist" aria-label="Filtrer les commandes">
