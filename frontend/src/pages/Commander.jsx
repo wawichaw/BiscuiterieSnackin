@@ -8,6 +8,7 @@ import {
 } from '../utils/ramassage';
 import { useAuth } from '../contexts/AuthContext';
 import StripeCheckout from '../components/StripeCheckout';
+import { SOURCE_DECOUVERTE_OPTIONS } from '../utils/sourceDecouverte';
 import './Commander.css';
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
@@ -15,16 +16,6 @@ const CACHE_TTL_MS = 5 * 60 * 1000;
 const TYPE_RECEPTION = 'ramassage';
 const METHODE_PAIEMENT = 'en_ligne';
 const PENDING_COMMANDE_KEY = 'snackin_pending_commande';
-
-const SOURCE_DECOUVERTE_OPTIONS = [
-  { value: 'instagram', label: 'Instagram' },
-  { value: 'facebook', label: 'Facebook' },
-  { value: 'tiktok', label: 'TikTok' },
-  { value: 'internet', label: 'Google / Internet' },
-  { value: 'bouche_a_oreille', label: 'Bouche-à-oreille' },
-  { value: 'evenement', label: 'Événement / marché' },
-  { value: 'autre', label: 'Autre' },
-];
 
 const Commander = () => {
   const { user } = useAuth();

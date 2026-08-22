@@ -134,6 +134,9 @@ const Layout = ({ children }) => {
                           <Link to="/admin/commandes" onClick={() => setShowDropdown(false)}>
                             Commandes
                           </Link>
+                          <Link to="/admin/statistiques" onClick={() => setShowDropdown(false)}>
+                            Statistiques
+                          </Link>
                         <Link to="/admin/horaires" onClick={() => setShowDropdown(false)}>
                           Horaires de ramassage
                         </Link>
