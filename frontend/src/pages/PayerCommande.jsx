@@ -80,7 +80,7 @@ const PayerCommande = () => {
           <h1>Paiement confirmé !</h1>
           <p>Merci {commande.visiteurNom} ! Votre commande est bien enregistrée.</p>
           <p className="success-detail">
-            Vous recevrez un courriel de confirmation avec les détails du ramassage.
+            Vous recevrez un courriel de confirmation avec votre facture PDF et les détails du ramassage.
           </p>
           <Link to="/" className="btn btn-primary">Retour à l'accueil</Link>
         </div>

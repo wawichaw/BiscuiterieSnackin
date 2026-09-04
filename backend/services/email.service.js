@@ -37,13 +37,25 @@ const getTransporter = () => {
 let lastResendSend = 0;
 const resendThrottleMs = 1100;
 
-/** Envoi : SendGrid (simple) > Resend > SMTP */
-const sendEmail = async (to, subject, text, html) => {
+/**
+ * @param {Array<{ filename: string, content: Buffer, contentType?: string }>} [attachments]
+ */
+const sendEmail = async (to, subject, text, html, attachments = []) => {
   const from = getFromEmail();
+  const hasAttachments = Array.isArray(attachments) && attachments.length > 0;
 
   if (useSendGrid()) {
     sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-    const [res] = await sgMail.send({ to, from, subject, html, text });
+    const msg = { to, from, subject, html, text };
+    if (hasAttachments) {
+      msg.attachments = attachments.map((a) => ({
+        content: Buffer.isBuffer(a.content) ? a.content.toString('base64') : a.content,
+        filename: a.filename,
+        type: a.contentType || 'application/pdf',
+        disposition: 'attachment',
+      }));
+    }
+    const [res] = await sgMail.send(msg);
     console.log('✅ Email envoyé via SendGrid');
     return { success: true, messageId: res?.headers?.['x-message-id'] };
   }
@@ -54,9 +66,14 @@ const sendEmail = async (to, subject, text, html) => {
     if (wait > 0) await new Promise((r) => setTimeout(r, wait));
     lastResendSend = Date.now();
     const resend = new Resend(process.env.RESEND_API_KEY);
-    const { data, error } = await resend.emails.send({
-      from, to: [to], subject, html, text,
-    });
+    const payload = { from, to: [to], subject, html, text };
+    if (hasAttachments) {
+      payload.attachments = attachments.map((a) => ({
+        filename: a.filename,
+        content: Buffer.isBuffer(a.content) ? a.content : Buffer.from(a.content),
+      }));
+    }
+    const { data, error } = await resend.emails.send(payload);
     if (error) {
       console.error('❌ Resend error:', error);
       throw new Error(error.message || JSON.stringify(error));
@@ -66,7 +83,15 @@ const sendEmail = async (to, subject, text, html) => {
   }
 
   const transporter = getTransporter();
-  const info = await transporter.sendMail({ from, to, subject, text, html });
+  const mailOptions = { from, to, subject, text, html };
+  if (hasAttachments) {
+    mailOptions.attachments = attachments.map((a) => ({
+      filename: a.filename,
+      content: a.content,
+      contentType: a.contentType || 'application/pdf',
+    }));
+  }
+  const info = await transporter.sendMail(mailOptions);
   return { success: true, messageId: info.messageId };
 };
 
@@ -267,7 +292,11 @@ export const envoyerEmailConfirmation = async (options) => {
       adresseLivraison,
       dateLivraison,
       heureLivraison,
-      boites 
+      boites,
+      telephoneClient,
+      dateCommande,
+      methodePaiement,
+      fraisLivraison = 0,
     } = options;
 
     // Formater la date selon le type de réception
@@ -335,25 +364,26 @@ export const envoyerEmailConfirmation = async (options) => {
         <body>
           <div class="container">
             <div class="header">
-              <h1>🍪 Snackin' - Confirmation de commande</h1>
+              <h1>🍪 Snackin' — Confirmation & facture</h1>
             </div>
             <div class="content">
               <p>Bonjour ${nomClient},</p>
               
-              <p>Votre commande <strong>#${numeroCommande}</strong> est maintenant <strong>en traitement</strong> !</p>
+              <p>Merci ! Votre commande <strong>#${numeroCommande}</strong> est <strong>confirmée et payée</strong>.</p>
+              <p>Vous trouverez en pièce jointe votre <strong>facture PDF</strong> — preuve d'achat avec le détail de vos saveurs. Conservez-la, surtout si vous avez commandé à l'avance.</p>
               
-              <h2>Détails de votre commande :</h2>
+              <h2>Récapitulatif :</h2>
               ${boitesHTML}
               
               <div style="margin-top: 30px; padding: 15px; background: #f9f9f9; border-radius: 8px;">
-                <p><strong>Total :</strong> ${total.toFixed(2)} $</p>
+                <p><strong>Total payé :</strong> ${total.toFixed(2)} $</p>
                 ${lieuInfo}
                 <p><strong>Date et heure :</strong> ${dateFormatee} à ${heureFormatee}</p>
               </div>
               
               <p style="margin-top: 30px;">Nous vous contacterons lorsque votre commande sera prête !</p>
               
-              <p>Merci pour votre commande ! 🍪</p>
+              <p>Merci pour votre confiance ! 🍪</p>
               
               <p style="margin-top: 30px;">
                 <strong>L'équipe Snackin'</strong>
@@ -370,15 +400,17 @@ export const envoyerEmailConfirmation = async (options) => {
     const texte = `
 Bonjour ${nomClient},
 
-Votre commande #${numeroCommande} est maintenant en traitement !
+Merci ! Votre commande #${numeroCommande} est confirmée et payée.
 
-Détails de votre commande :
+Vous trouverez en pièce jointe votre facture PDF (preuve d'achat avec le détail de vos saveurs).
+
+Récapitulatif :
 ${boites.map((boite, index) => {
   const saveurs = boite.saveurs.map(s => `${s.quantite}x ${s.biscuit?.nom || 'Biscuit'}`).join(', ');
   return `Boîte ${index + 1} - ${boite.taille} biscuits (${boite.prix.toFixed(2)} $) : ${saveurs}`;
 }).join('\n')}
 
-Total : ${total.toFixed(2)} $
+Total payé : ${total.toFixed(2)} $
 ${typeReception === 'ramassage' 
   ? `Point de ramassage : ${villeRamassage || (pointRamassage ? pointRamassage.charAt(0).toUpperCase() + pointRamassage.slice(1) : '')}${adresseRamassage ? `\nAdresse : ${adresseRamassage}, ${villeRamassage || ''}` : ''}`
   : `Ville : ${villeLivraison.charAt(0).toUpperCase() + villeLivraison.slice(1)}\nAdresse : ${adresseLivraison.rue}, ${adresseLivraison.codePostal}${adresseLivraison.instructions ? `\nInstructions : ${adresseLivraison.instructions}` : ''}`
@@ -387,14 +419,48 @@ Date et heure : ${dateFormatee} à ${heureFormatee}
 
 Nous vous contacterons lorsque votre commande sera prête !
 
-Merci pour votre commande !
+Merci pour votre confiance !
 L'équipe Snackin'
     `;
 
+    let attachments = [];
+    try {
+      const { genererFacturePdf } = await import('./facture.service.js');
+      const facture = await genererFacturePdf({
+        numeroCommande,
+        nomClient,
+        emailClient: to,
+        telephoneClient,
+        dateCommande,
+        total,
+        fraisLivraison,
+        typeReception,
+        pointRamassage,
+        villeRamassage,
+        adresseRamassage,
+        dateRamassage,
+        heureRamassage,
+        villeLivraison,
+        adresseLivraison,
+        dateLivraison,
+        heureLivraison,
+        methodePaiement,
+        boites,
+      });
+      attachments = [{
+        filename: facture.filename,
+        content: facture.buffer,
+        contentType: 'application/pdf',
+      }];
+      console.log('📄 Facture PDF générée:', facture.filename);
+    } catch (factureError) {
+      console.error('⚠️ Facture PDF non générée (email envoyé sans pièce jointe):', factureError.message || factureError);
+    }
+
     console.log('📧 Destinataire:', to);
-    const subject = `🍪 Snackin' - Votre commande #${numeroCommande} est en traitement`;
-    const result = await sendEmail(to, subject, texte, html);
-    console.log('✅ Email confirmation envoyé à', to);
+    const subject = `🍪 Snackin' — Confirmation & facture #${numeroCommande}`;
+    const result = await sendEmail(to, subject, texte, html, attachments);
+    console.log('✅ Email confirmation envoyé à', to, attachments.length ? '(avec facture)' : '(sans facture)');
     return result;
   } catch (error) {
     const errMsg = error.response || error.message || String(error);

@@ -6,12 +6,16 @@ import ExcelJS from 'exceljs';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import { injectExcelCharts } from './inject-excel-charts.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, '..');
 
 const sources = [
+  path.join(process.env.USERPROFILE || '', 'Downloads', 'Snackin_Dashboard_Aicha_Optimise_v2.xlsx'),
+  path.join(process.env.USERPROFILE || '', 'Downloads', 'Snackin_Dashboard_Aicha_Optimise.xlsx'),
   path.join(process.env.USERPROFILE || '', 'Downloads', 'Snackin_Dashboard_Aicha.xlsx'),
+  path.join(root, 'Snackin_Dashboard_Aicha_Optimise.xlsx'),
   path.join(root, 'Snackin_Dashboard_Aicha_copy.xlsx'),
 ];
 
@@ -22,6 +26,50 @@ const outputPath = path.join(
   'Downloads',
   'Snackin_Dashboard_Aicha_Optimise.xlsx',
 );
+
+const outputCopyPath = path.join(root, 'Snackin_Dashboard_Aicha_Optimise.xlsx');
+const outputFallbackPath = path.join(
+  process.env.USERPROFILE || root,
+  'Downloads',
+  'Snackin_Dashboard_Aicha_Optimise_v2.xlsx',
+);
+const outputV3Path = path.join(
+  process.env.USERPROFILE || root,
+  'Downloads',
+  'Snackin_Dashboard_Aicha_Optimise_v3.xlsx',
+);
+
+const colLetter = (n) => {
+  let s = '';
+  let num = n;
+  while (num > 0) {
+    const m = (num - 1) % 26;
+    s = String.fromCharCode(65 + m) + s;
+    num = Math.floor((num - 1) / 26);
+  }
+  return s;
+};
+
+/** Extrait les noms de biscuits depuis la colonne Produit (ex. "2x Dulce Lava"). */
+const extractCookiesFromProduit = (text) => {
+  const names = new Set();
+  if (!text) return names;
+  const regex = /(\d+)\s*x\s+([^\n\r]+)/gi;
+  let match = regex.exec(String(text));
+  while (match) {
+    const name = match[2].trim();
+    if (name && !/^boîte\b/i.test(name) && !/biscuits?\s*$/i.test(name)) {
+      names.add(name);
+    }
+    match = regex.exec(String(text));
+  }
+  return names;
+};
+
+const ventesCookieFormula = (row, cookieName) => {
+  const esc = cookieName.replace(/"/g, '""');
+  return `IF(C${row}="","",SUM(MAP(TEXTSPLIT(C${row},CHAR(10)),LAMBDA(L,IF(ISNUMBER(SEARCH("x ${esc}",L)),IFERROR(--TRIM(RIGHT(SUBSTITUTE(TEXTBEFORE(L,"x")," ",REPT(" ",100)),100)),0),0))))`;
+};
 
 const parseMontant = (value) => {
   if (value == null || value === '') return null;
@@ -113,6 +161,16 @@ async function main() {
   const monthOptions = [...monthSet].filter(Boolean).sort();
   const monthListFormula = `"${monthOptions.join(',')}"`;
 
+  // --- Extraire la liste des biscuits vendus ---
+  const cookieSet = new Set();
+  ventes.eachRow((row, rowNumber) => {
+    if (rowNumber === 1) return;
+    const produit = row.getCell(3).value;
+    extractCookiesFromProduit(produit).forEach((name) => cookieSet.add(name));
+  });
+  const cookieNames = [...cookieSet].sort((a, b) => a.localeCompare(b, 'fr'));
+  const COOKIE_COL_START = 9; // colonne I (H réservée éventuellement à « source »)
+
   // --- Dépenses : format numérique Montant ---
   if (depenses) {
     depenses.eachRow((row, rowNumber) => {
@@ -131,8 +189,15 @@ async function main() {
     });
   }
 
-  // --- Tableau de bord optimisé ---
-  dashboard.spliceRows(1, dashboard.rowCount);
+  // --- Tableau de bord optimisé (recréer la feuille pour éviter conflits de fusion) ---
+  const dashIndex = dashboard.id;
+  wb.removeWorksheet(dashIndex);
+  dashboard = wb.addWorksheet('Tableau de bord');
+  wb.worksheets.sort((a, b) => {
+    if (a.name === 'Tableau de bord') return -1;
+    if (b.name === 'Tableau de bord') return 1;
+    return 0;
+  });
 
   const cherry = 'FFA0162B';
   const headerFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF5F7' } };
@@ -203,7 +268,7 @@ async function main() {
   const metrics = [
     {
       label: "Chiffre d'affaires du mois",
-      formula: `SUMIFS(Ventes!G:G,Ventes!A:A,">="&${dateStart},Ventes!A:A,"<="&${dateEnd},Ventes!F:F,"confirmer")`,
+      formula: `SUMIFS(Ventes!G:G,Ventes!A:A,">="&${dateStart},Ventes!A:A,"<="&${dateEnd},Ventes!F:F,"confirmer*")`,
       fmt: '#,##0.00" $"',
     },
     {
@@ -218,7 +283,7 @@ async function main() {
     },
     {
       label: 'Nombre de commandes',
-      formula: `COUNTIFS(Ventes!A:A,">="&${dateStart},Ventes!A:A,"<="&${dateEnd},Ventes!F:F,"confirmer")`,
+      formula: `COUNTIFS(Ventes!A:A,">="&${dateStart},Ventes!A:A,"<="&${dateEnd},Ventes!F:F,"confirmer*")`,
       fmt: '0',
     },
     {
@@ -228,7 +293,7 @@ async function main() {
     },
     {
       label: 'Ventes site web',
-      formula: `COUNTIFS(Ventes!G:G,">0",Ventes!A:A,">="&${dateStart},Ventes!A:A,"<="&${dateEnd},Ventes!F:F,"confirmer",Ventes!H:H,"site web")`,
+      formula: `COUNTIFS(Ventes!G:G,">0",Ventes!A:A,">="&${dateStart},Ventes!A:A,"<="&${dateEnd},Ventes!F:F,"confirmer*",Ventes!H:H,"site web")`,
       fmt: '0',
     },
   ];
@@ -240,34 +305,182 @@ async function main() {
     dashboard.getCell(`B${r}`).numFmt = m.fmt;
   });
 
+  // Cookie le plus vendu du mois (auxiliaires D4/D5, colonne D déjà masquée)
+  dashboard.getCell('D4').value = {
+    formula: cookieNames.length ? "MAX('Stats biscuits'!B:B)" : '0',
+  };
+  dashboard.getCell('D5').value = {
+    formula: cookieNames.length
+      ? 'IF(D4=0,"—",INDEX(\'Stats biscuits\'!A:A,MATCH(D4,\'Stats biscuits\'!B:B,0)))'
+      : '"—"',
+  };
+
+  dashboard.getCell('A17').value = '🍪 Cookie le plus vendu (mois)';
+  dashboard.getCell('B17').value = {
+    formula: 'IF(D4=0,"—",D5&" ("&TEXT(D4,"0")&" unités)")',
+  };
+  dashboard.getCell('B17').font = { bold: true, size: 12, color: { argb: cherry } };
+  dashboard.getCell('A17').font = { bold: true };
+
+  // Cookie le moins vendu (MINIFS > 0)
+  dashboard.getCell('D6').value = {
+    formula: cookieNames.length
+      ? 'IF(COUNTIFS(\'Stats biscuits\'!B:B,">0")=0,0,MINIFS(\'Stats biscuits\'!B:B,\'Stats biscuits\'!B:B,">0"))'
+      : '0',
+  };
+  dashboard.getCell('D7').value = {
+    formula: cookieNames.length
+      ? 'IF(D6=0,"—",INDEX(\'Stats biscuits\'!A:A,MATCH(D6,\'Stats biscuits\'!B:B,0)))'
+      : '"—"',
+  };
+  dashboard.getCell('A18').value = '📉 Cookie le moins vendu (mois)';
+  dashboard.getCell('B18').value = {
+    formula: 'IF(D6=0,"—",D7&" ("&TEXT(D6,"0")&" unités)")',
+  };
+  dashboard.getCell('B18').font = { bold: true, size: 12, color: { argb: 'FF555555' } };
+  dashboard.getCell('A18').font = { bold: true };
+
   // Section — synthèse
-  dashboard.mergeCells('A18:B18');
-  dashboard.getCell('A18').value = '📈 Synthèse';
-  dashboard.getCell('A18').fill = sectionFill;
-  dashboard.getCell('A18').font = { bold: true, color: { argb: cherry } };
+  dashboard.mergeCells('A21:B21');
+  dashboard.getCell('A21').value = '📈 Synthèse';
+  dashboard.getCell('A21').fill = sectionFill;
+  dashboard.getCell('A21').font = { bold: true, color: { argb: cherry } };
 
-  dashboard.getCell('A19').value = 'Trésorerie totale (banque + comptant)';
-  dashboard.getCell('B19').value = { formula: 'B6+B7' };
-  dashboard.getCell('B19').numFmt = '#,##0.00" $"';
+  dashboard.getCell('A22').value = 'Trésorerie totale (banque + comptant)';
+  dashboard.getCell('B22').value = { formula: 'B6+B7' };
+  dashboard.getCell('B22').numFmt = '#,##0.00" $"';
 
-  dashboard.getCell('A20').value = 'Profit estimé global (trésorerie − dépenses du mois)';
-  dashboard.getCell('B20').value = { formula: 'B19-B11' };
-  dashboard.getCell('B20').numFmt = '#,##0.00" $"';
+  dashboard.getCell('A23').value = 'Profit estimé global (trésorerie − dépenses du mois)';
+  dashboard.getCell('B23').value = { formula: 'B22-B11' };
+  dashboard.getCell('B23').numFmt = '#,##0.00" $"';
 
   // Instructions
-  dashboard.mergeCells('A22:B25');
-  dashboard.getCell('A22').value = [
+  dashboard.mergeCells('A25:B28');
+  dashboard.getCell('A25').value = [
     'Comment utiliser :',
-    '1. Choisissez le mois en B2 — les stats se mettent à jour automatiquement.',
-    '2. Mettez à jour banque/comptant (B6-B7) quand vous le souhaitez.',
-    '3. Ajoutez vos ventes dans « Ventes » et dépenses dans « Dépenses » (dates + montants).',
-    '4. Colonne G « Montant (num.) » dans Ventes est remplie automatiquement si vous entrez ex. 24$.',
+    '1. Choisissez le mois en B2 — stats et graphiques se mettent à jour.',
+    '2. Consultez la feuille « Graphiques » pour les diagrammes visuels.',
+    '3. Ajoutez vos ventes dans « Ventes » (colonne Produit : ex. 2x Dulce Lava).',
+    '4. Cookies +/- vendus : feuille « Stats biscuits ». Nécessite Excel 365.',
   ].join('\n');
-  dashboard.getCell('A22').alignment = { wrapText: true, vertical: 'top' };
-  dashboard.getCell('A22').font = { size: 10, color: { argb: 'FF666666' } };
+  dashboard.getCell('A25').alignment = { wrapText: true, vertical: 'top' };
+  dashboard.getCell('A25').font = { size: 10, color: { argb: 'FF666666' } };
 
   dashboard.getColumn(1).width = 42;
-  dashboard.getColumn(2).width = 22;
+  dashboard.getColumn(2).width = 28;
+
+  // --- Feuille Stats biscuits ---
+  let statsBiscuits = wb.getWorksheet('Stats biscuits');
+  if (statsBiscuits) wb.removeWorksheet(statsBiscuits.id);
+  statsBiscuits = wb.addWorksheet('Stats biscuits');
+
+  statsBiscuits.getCell('A1').value = 'Biscuit';
+  statsBiscuits.getCell('B1').value = 'Quantité (mois sélectionné)';
+  statsBiscuits.getCell('C1').value = 'Quantité (totale)';
+  statsBiscuits.getCell('D1').value = 'Col. Ventes';
+  [statsBiscuits.getCell('A1'), statsBiscuits.getCell('B1'), statsBiscuits.getCell('C1')].forEach((cell) => {
+    cell.font = { bold: true, color: { argb: cherry } };
+    cell.fill = headerFill;
+  });
+  statsBiscuits.getColumn(4).hidden = true;
+
+  cookieNames.forEach((name, index) => {
+    const r = index + 2;
+    const ventesCol = colLetter(COOKIE_COL_START + index);
+    statsBiscuits.getCell(`A${r}`).value = name;
+    statsBiscuits.getCell(`D${r}`).value = ventesCol;
+    statsBiscuits.getCell(`B${r}`).value = {
+      formula: `SUMPRODUCT((YEAR(Ventes!$A$2:$A$500)='Tableau de bord'!$D$2)*(MONTH(Ventes!$A$2:$A$500)='Tableau de bord'!$D$3)*(TRIM(Ventes!$F$2:$F$500)="confirmer")*Ventes!$${ventesCol}$2:$${ventesCol}$500)`,
+    };
+    statsBiscuits.getCell(`C${r}`).value = {
+      formula: `SUMPRODUCT((TRIM(Ventes!$F$2:$F$500)="confirmer")*Ventes!$${ventesCol}$2:$${ventesCol}$500)`,
+    };
+    statsBiscuits.getCell(`B${r}`).numFmt = '0';
+    statsBiscuits.getCell(`C${r}`).numFmt = '0';
+  });
+
+  statsBiscuits.getColumn(1).width = 28;
+  statsBiscuits.getColumn(2).width = 26;
+  statsBiscuits.getColumn(3).width = 18;
+
+  // --- Feuille Données graphiques ---
+  let dataGraph = wb.getWorksheet('Données graphiques');
+  if (dataGraph) wb.removeWorksheet(dataGraph.id);
+  dataGraph = wb.addWorksheet('Données graphiques');
+
+  dataGraph.getCell('A1').value = '📊 Données pour graphiques (formules dynamiques)';
+  dataGraph.getCell('A1').font = { bold: true, size: 14, color: { argb: cherry } };
+
+  dataGraph.getCell('A3').value = 'CA par mois ($)';
+  dataGraph.getCell('A3').font = { bold: true, color: { argb: cherry } };
+  dataGraph.getCell('A4').value = 'Mois';
+  dataGraph.getCell('B4').value = 'Chiffre d\'affaires';
+  monthOptions.forEach((key, i) => {
+    const r = 5 + i;
+    const [y, m] = key.split('-').map(Number);
+    dataGraph.getCell(`A${r}`).value = formatMonthLabel(key);
+    dataGraph.getCell(`B${r}`).value = {
+      formula: `SUMIFS(Ventes!G:G,Ventes!A:A,">="&DATE(${y},${m},1),Ventes!A:A,"<="&EOMONTH(DATE(${y},${m},1),0),Ventes!F:F,"confirmer*")`,
+    };
+    dataGraph.getCell(`B${r}`).numFmt = '#,##0.00" $"';
+  });
+  const caStart = 5;
+  const caEnd = 4 + monthOptions.length;
+
+  dataGraph.getCell('D3').value = 'Saveurs vendues (mois sélectionné)';
+  dataGraph.getCell('D3').font = { bold: true, color: { argb: cherry } };
+  dataGraph.getCell('D4').value = 'Biscuit';
+  dataGraph.getCell('E4').value = 'Quantité';
+  cookieNames.forEach((_, i) => {
+    const r = 5 + i;
+    dataGraph.getCell(`D${r}`).value = { formula: `'Stats biscuits'!A${i + 2}` };
+    dataGraph.getCell(`E${r}`).value = { formula: `'Stats biscuits'!B${i + 2}` };
+    dataGraph.getCell(`E${r}`).numFmt = '0';
+  });
+  const pieStart = 5;
+  const pieEnd = 4 + cookieNames.length;
+
+  dataGraph.getCell('G3').value = 'Entrées d\'argent par jour (mois sélectionné)';
+  dataGraph.getCell('G3').font = { bold: true, color: { argb: cherry } };
+  dataGraph.getCell('G4').value = 'Jour';
+  dataGraph.getCell('H4').value = 'Montant ($)';
+  for (let d = 1; d <= 31; d++) {
+    const r = 4 + d;
+    dataGraph.getCell(`G${r}`).value = `J${d}`;
+    dataGraph.getCell(`H${r}`).value = {
+      formula: `SUMIFS(Ventes!G:G,Ventes!A:A,">="&DATE('Tableau de bord'!$D$2,'Tableau de bord'!$D$3,${d}),Ventes!A:A,"<"&DATE('Tableau de bord'!$D$2,'Tableau de bord'!$D$3,${d}+1),Ventes!F:F,"confirmer*")`,
+    };
+    dataGraph.getCell(`H${r}`).numFmt = '#,##0.00" $"';
+  }
+
+  dataGraph.getColumn(1).width = 22;
+  dataGraph.getColumn(2).width = 18;
+  dataGraph.getColumn(4).width = 26;
+  dataGraph.getColumn(5).width = 12;
+  dataGraph.getColumn(7).width = 10;
+  dataGraph.getColumn(8).width = 16;
+
+  // --- Feuille Graphiques (titres + graphiques injectés) ---
+  let graphiques = wb.getWorksheet('Graphiques');
+  if (graphiques) wb.removeWorksheet(graphiques.id);
+  graphiques = wb.addWorksheet('Graphiques');
+  graphiques.getCell('A1').value = '📈 Graphiques Snackin\' — se mettent à jour selon le mois (B2 du Tableau de bord)';
+  graphiques.getCell('A1').font = { bold: true, size: 14, color: { argb: cherry } };
+  graphiques.getCell('A2').value = 'Mois actif :';
+  graphiques.getCell('B2').value = { formula: "'Tableau de bord'!B3" };
+  graphiques.getColumn(1).width = 50;
+
+  // --- Colonnes quantité par biscuit dans Ventes (I, J, K…) ---
+  cookieNames.forEach((name, index) => {
+    const col = COOKIE_COL_START + index;
+    const letter = colLetter(col);
+    ventes.getCell(`${letter}1`).value = `Qty ${name}`;
+    ventes.getColumn(col).width = 12;
+    for (let r = 2; r <= 500; r++) {
+      ventes.getCell(`${letter}${r}`).value = { formula: ventesCookieFormula(r, name) };
+      ventes.getCell(`${letter}${r}`).numFmt = '0';
+    }
+  });
 
   // Formules colonne G pour nouvelles lignes Ventes
   for (let r = 2; r <= 500; r++) {
@@ -277,10 +490,66 @@ async function main() {
     ventes.getCell(`G${r}`).numFmt = '#,##0.00" $"';
   }
 
-  await wb.xlsx.writeFile(outputPath);
-  console.log('✅ Fichier créé:', outputPath);
+  // Générer buffer + injecter graphiques
+  let buffer = await wb.xlsx.writeBuffer();
+
+  const chartConfig = {
+    sheetName: 'Graphiques',
+    charts: [
+      {
+        type: 'bar',
+        title: 'CA par mois',
+        catRange: `'Données graphiques'!$A$${caStart}:$A$${caEnd}`,
+        valRange: `'Données graphiques'!$B$${caStart}:$B$${caEnd}`,
+        barDir: 'col',
+        anchor: { col: 0, row: 3, col2: 8, row2: 20 },
+      },
+      {
+        type: 'pie',
+        title: 'Saveurs vendues (mois)',
+        catRange: `'Données graphiques'!$D$${pieStart}:$D$${pieEnd}`,
+        valRange: `'Données graphiques'!$E$${pieStart}:$E$${pieEnd}`,
+        anchor: { col: 9, row: 3, col2: 17, row2: 20 },
+      },
+      {
+        type: 'line',
+        title: 'Entrées par jour (mois)',
+        catRange: `'Données graphiques'!$G$5:$G$35`,
+        valRange: `'Données graphiques'!$H$5:$H$35`,
+        anchor: { col: 0, row: 21, col2: 12, row2: 38 },
+      },
+    ],
+  };
+
+  try {
+    buffer = await injectExcelCharts(Buffer.from(buffer), chartConfig);
+    console.log('✅ Graphiques injectés (3 diagrammes)');
+  } catch (chartErr) {
+    console.warn('⚠️ Graphiques non injectés:', chartErr.message);
+    console.warn('   Les données restent dans « Données graphiques ».');
+  }
+
+  let savedPath = '';
+  for (const target of [outputPath, outputV3Path, outputCopyPath, outputFallbackPath]) {
+    try {
+      fs.writeFileSync(target, buffer);
+      savedPath = target;
+      console.log('✅ Fichier créé:', target);
+      break;
+    } catch (err) {
+      if (err.code === 'EBUSY') {
+        console.warn('⚠️ Verrouillé:', target);
+      } else {
+        throw err;
+      }
+    }
+  }
+  if (!savedPath) {
+    throw new Error('Impossible d\'écrire le fichier — fermez Excel et relancez le script.');
+  }
   console.log('   Mois par défaut:', defaultMonth, '—', formatMonthLabel(defaultMonth));
   console.log('   Mois disponibles:', monthOptions.map(formatMonthLabel).join(', '));
+  console.log('   Biscuits détectés:', cookieNames.length ? cookieNames.join(', ') : '(aucun)');
 }
 
 main().catch((err) => {

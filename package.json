@@ -1,5 +1,9 @@
 {
   "dependencies": {
     "@sentry/react": "^10.38.0"
+  },
+  "devDependencies": {
+    "exceljs": "^4.4.0",
+    "jszip": "^3.10.1"
   }
 }

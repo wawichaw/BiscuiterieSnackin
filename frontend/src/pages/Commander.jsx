@@ -947,7 +947,7 @@ const Commander = () => {
                   className="form-input"
                   placeholder="votre@email.com"
                 />
-                <small className="desktop-only">Nous vous enverrons la confirmation de commande par email</small>
+                <small className="desktop-only">Nous vous enverrons la confirmation et votre facture par courriel</small>
               </div>
               <div className="form-group">
                 <label>Téléphone (optionnel)</label>
@@ -1078,9 +1078,9 @@ const Commander = () => {
             <p className="commande-numero">
               Numéro de commande: <strong>#{commandeCreee.numero ? commandeCreee.numero.slice(-6) : commandeCreee._id?.slice(-6) || 'N/A'}</strong>
             </p>
-            <p>Un email de confirmation a été envoyé à {user ? user.email : visiteurEmail}
+            <p>Un courriel de confirmation avec votre facture PDF a été envoyé à {user ? user.email : visiteurEmail}
               {lieuAdresseParCourriel(commandeCreee.pointRamassage)
-                ? ' avec l\'adresse de ramassage.'
+                ? ' (adresse de ramassage incluse).'
                 : '.'}
             </p>
           </div>

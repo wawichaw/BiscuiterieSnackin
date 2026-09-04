@@ -219,8 +219,12 @@ router.post('/confirm', optionalAuth, async (req, res) => {
           await envoyerEmailConfirmation({
             to: email,
             nomClient: nom,
+            telephoneClient: commande.visiteurTelephone || undefined,
+            dateCommande: commande.createdAt,
             numeroCommande: commande._id.toString().slice(-6),
             total: commande.total,
+            fraisLivraison: commande.fraisLivraison || 0,
+            methodePaiement: commande.methodePaiement,
             typeReception: commande.typeReception,
             pointRamassage: commande.pointRamassage,
             ...ramassageExtras,
