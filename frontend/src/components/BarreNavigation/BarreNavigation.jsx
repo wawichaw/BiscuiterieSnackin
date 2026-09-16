@@ -211,11 +211,6 @@ const Layout = ({ children }) => {
               <div className="mobile-user-info">
                 <span className="mobile-user-name">{user.name}</span>
                 {isAdmin && (
-<<<<<<< HEAD
-                  <Link to="/admin/dashboard" onClick={closeMobileMenu} className="mobile-admin-link">
-                    Tableau de bord
-                  </Link>
-=======
                   <>
                     <Link to="/admin/dashboard" onClick={closeMobileMenu} className="mobile-admin-link">
                       Tableau de bord

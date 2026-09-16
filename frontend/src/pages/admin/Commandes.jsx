@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { libellePointAvecAdresse, libelleVilleDepuisSlug } from '../../utils/ramassage';
-import { libellePointAvecAdresse, libelleVilleDepuisSlug } from '../../utils/ramassage';
 import { getSourceDecouverteLabel } from '../../utils/sourceDecouverte';
 import './Commandes.css';
 
