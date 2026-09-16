@@ -89,12 +89,16 @@ const Layout = ({ children }) => {
           {/* Menu Desktop */}
           <div className="snk-spacer"></div>
           <div className="nav-links-desktop">
-            <Link to="/">Accueil</Link>
-            <Link to="/biscuits">Biscuits</Link>
-            {!isAdmin && <Link to="/commander">Commander</Link>}
-            {user && !isAdmin && <Link to="/mes-commandes">Mes commandes</Link>}
-            <Link to="/commentaires">Commentaires</Link>
-            <Link to="/about">À propos</Link>
+            {!isAssistant && (
+              <>
+                <Link to="/">Accueil</Link>
+                <Link to="/biscuits">Biscuits</Link>
+                {!isAdmin && <Link to="/commander">Commander</Link>}
+                {user && !isAdmin && <Link to="/mes-commandes">Mes commandes</Link>}
+                <Link to="/commentaires">Commentaires</Link>
+                <Link to="/about">À propos</Link>
+              </>
+            )}
           </div>
 
           <div className="snk-spacer"></div>
@@ -112,7 +116,7 @@ const Layout = ({ children }) => {
                   onMouseLeave={handleMouseLeave}
                 >
                   <Link
-                    to={isAdmin ? '/admin/dashboard' : '#'}
+                    to={isAdmin ? '/admin/dashboard' : isAssistant ? '/admin/commandes' : '#'}
                     className="user-name"
                   >
                     {user.name}
@@ -151,7 +155,17 @@ const Layout = ({ children }) => {
                         </Link>
                         </>
                       )}
-                      {!isAdmin && (
+                      {isAssistant && (
+                        <>
+                          <Link to="/admin/commandes" onClick={() => setShowDropdown(false)}>
+                            Voir les commandes
+                          </Link>
+                          <Link to="/admin/lien-paiement" onClick={() => setShowDropdown(false)}>
+                            Créer un lien de paiement
+                          </Link>
+                        </>
+                      )}
+                      {!isAdmin && !isAssistant && (
                         <Link to="/mes-commandes" onClick={() => setShowDropdown(false)}>
                           Mes commandes
                         </Link>
@@ -188,16 +202,20 @@ const Layout = ({ children }) => {
 
         {/* Menu Mobile */}
         <div className={`mobile-menu ${mobileMenuOpen ? 'open' : ''}`}>
-          <Link to="/" onClick={closeMobileMenu}>Accueil</Link>
-          <Link to="/biscuits" onClick={closeMobileMenu}>Biscuits</Link>
-          {!isAdmin && (
-            <Link to="/commander" onClick={closeMobileMenu}>Commander</Link>
+          {!isAssistant && (
+            <>
+              <Link to="/" onClick={closeMobileMenu}>Accueil</Link>
+              <Link to="/biscuits" onClick={closeMobileMenu}>Biscuits</Link>
+              {!isAdmin && (
+                <Link to="/commander" onClick={closeMobileMenu}>Commander</Link>
+              )}
+              {user && !isAdmin && (
+                <Link to="/mes-commandes" onClick={closeMobileMenu}>Mes commandes</Link>
+              )}
+              <Link to="/commentaires" onClick={closeMobileMenu}>Commentaires</Link>
+              <Link to="/about" onClick={closeMobileMenu}>À propos</Link>
+            </>
           )}
-          {user && !isAdmin && (
-            <Link to="/mes-commandes" onClick={closeMobileMenu}>Mes commandes</Link>
-          )}
-          <Link to="/commentaires" onClick={closeMobileMenu}>Commentaires</Link>
-          <Link to="/about" onClick={closeMobileMenu}>À propos</Link>
           
           <div className="mobile-menu-divider"></div>
           
@@ -237,13 +255,10 @@ const Layout = ({ children }) => {
                 )}
                 {isAssistant && (
                   <>
-                    <Link to="/assistant/dashboard" onClick={closeMobileMenu} className="mobile-admin-link">
-                      Tableau de bord assistant
-                    </Link>
-                    <Link to="/assistant/commandes" onClick={closeMobileMenu} className="mobile-admin-link">
+                    <Link to="/admin/commandes" onClick={closeMobileMenu} className="mobile-admin-link">
                       Voir les commandes
                     </Link>
-                    <Link to="/assistant/paiement" onClick={closeMobileMenu} className="mobile-admin-link">
+                    <Link to="/admin/lien-paiement" onClick={closeMobileMenu} className="mobile-admin-link">
                       Créer un lien de paiement
                     </Link>
                   </>
