@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import './BarreNavigation.css';
 
 const Layout = ({ children }) => {
-  const { user, logout, isAdmin } = useAuth();
+  const { user, logout, isAdmin, isAssistant } = useAuth();
   const location = useLocation();
   const [showDropdown, setShowDropdown] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
