@@ -203,20 +203,19 @@ function App() {
                 </AdminRoute>
               }
             />
-
+            <Route
+              path="/admin/dashboard/assistant"
+              element={
+                <AdminRoute>
+                  <AdminAssistants />
+                </AdminRoute>
+              }
+            />
             <Route
               path="/admin/lien-paiement"
               element={
                 <AdminRoute allowAssistant>
                   <AdminLienPaiement />
-                </AdminRoute>
-              }
-            />
-            <Route
-              path="/admin/assistants"
-              element={
-                <AdminRoute>
-                  <AdminAssistants />
                 </AdminRoute>
               }
             />

@@ -146,6 +146,9 @@ const Layout = ({ children }) => {
                         <Link to="/admin/galerie" onClick={() => setShowDropdown(false)}>
                           Galerie photos
                         </Link>
+                        <Link to="/admin/dashboard/assistant" onClick={() => setShowDropdown(false)}>
+                          Gérer les assistants
+                        </Link>
                         </>
                       )}
                       {!isAdmin && (
@@ -208,9 +211,47 @@ const Layout = ({ children }) => {
               <div className="mobile-user-info">
                 <span className="mobile-user-name">{user.name}</span>
                 {isAdmin && (
+<<<<<<< HEAD
                   <Link to="/admin/dashboard" onClick={closeMobileMenu} className="mobile-admin-link">
                     Tableau de bord
                   </Link>
+=======
+                  <>
+                    <Link to="/admin/dashboard" onClick={closeMobileMenu} className="mobile-admin-link">
+                      Tableau de bord
+                    </Link>
+                    <Link to="/admin/biscuits" onClick={closeMobileMenu} className="mobile-admin-link">
+                      Biscuits
+                    </Link>
+                    <Link to="/admin/commandes" onClick={closeMobileMenu} className="mobile-admin-link">
+                      Commandes
+                    </Link>
+                    <Link to="/admin/horaires" onClick={closeMobileMenu} className="mobile-admin-link">
+                      Horaires de ramassage
+                    </Link>
+                    <Link to="/admin/commentaires" onClick={closeMobileMenu} className="mobile-admin-link">
+                      Commentaires
+                    </Link>
+                    <Link to="/admin/galerie" onClick={closeMobileMenu} className="mobile-admin-link">
+                      Galerie photos
+                    </Link>
+                    <Link to="/admin/dashboard/assistant" onClick={closeMobileMenu} className="mobile-admin-link">
+                      Gérer les assistants
+                    </Link>
+                  </>
+                )}
+                {isAssistant && (
+                  <>
+                    <Link to="/assistant/dashboard" onClick={closeMobileMenu} className="mobile-admin-link">
+                      Tableau de bord assistant
+                    </Link>
+                    <Link to="/assistant/commandes" onClick={closeMobileMenu} className="mobile-admin-link">
+                      Voir les commandes
+                    </Link>
+                    <Link to="/assistant/paiement" onClick={closeMobileMenu} className="mobile-admin-link">
+                      Créer un lien de paiement
+                    </Link>
+                  </>
                 )}
               </div>
               <button type="button" onClick={handleLogout} className="mobile-logout-btn">
