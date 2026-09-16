@@ -127,7 +127,7 @@ router.post('/login', [
     const { email, password } = req.body;
 
     // Trouver l'utilisateur avec le mot de passe
-    const user = await User.findOne({ email }).select('+password');
+    const user = await User.findOne({ email }).select('+password +temporaryPassword +temporaryPasswordExpires +forcePasswordChange');
     
     if (!user) {
       return res.status(401).json({
@@ -144,12 +144,22 @@ router.post('/login', [
       });
     }
 
-    // Vérifier le mot de passe
+    // Vérifier le mot de passe (principal ou temporaire)
     const isPasswordValid = await user.comparePassword(password);
-    if (!isPasswordValid) {
+    const isTemporaryPasswordValid = await user.compareTemporaryPassword(password);
+
+    if (!isPasswordValid && !isTemporaryPasswordValid) {
       return res.status(401).json({
         success: false,
         message: 'Email ou mot de passe incorrect',
+      });
+    }
+
+    // Vérifier si le mot de passe temporaire a expiré
+    if (isTemporaryPasswordValid && user.temporaryPasswordExpires && new Date() > user.temporaryPasswordExpires) {
+      return res.status(400).json({
+        success: false,
+        message: 'Le mot de passe temporaire a expiré. Veuillez contacter l\'administrateur.',
       });
     }
 
@@ -159,15 +169,25 @@ router.post('/login', [
     // Retourner les données (sans le mot de passe)
     const userData = user.toObject();
     delete userData.password;
+    delete userData.temporaryPassword;
+    delete userData.temporaryPasswordExpires;
 
-    res.json({
+    const response = {
       success: true,
       message: 'Connexion réussie',
       data: {
         token,
         user: userData,
       },
-    });
+    };
+
+    // Si l'utilisateur doit changer son mot de passe, ajouter un indicateur
+    if (user.forcePasswordChange) {
+      response.data.forcePasswordChange = true;
+      response.message = 'Connexion réussie. Veuillez changer votre mot de passe.';
+    }
+
+    res.json(response);
   } catch (error) {
     console.error('Erreur lors de la connexion:', error);
     res.status(500).json({
@@ -438,6 +458,91 @@ router.post('/reset-password', [
     });
   } catch (error) {
     console.error('Erreur reset-password:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Erreur serveur. Veuillez réessayer.',
+    });
+  }
+});
+
+// @route   POST /api/auth/change-password
+// @desc    Changer le mot de passe (première connexion pour assistant)
+// @access  Private
+router.post('/change-password', authenticate, [
+  body('oldPassword').notEmpty().withMessage('L\'ancien mot de passe est requis'),
+  body('newPassword').isLength({ min: 8 }).withMessage('Le mot de passe doit contenir au moins 8 caractères'),
+  body('newPassword_confirmation').custom((value, { req }) => {
+    if (value !== req.body.newPassword) {
+      throw new Error('Les mots de passe ne correspondent pas');
+    }
+    return true;
+  }),
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Erreurs de validation',
+        errors: errors.array(),
+      });
+    }
+
+    const { oldPassword, newPassword } = req.body;
+    const user = await User.findById(req.userId).select('+password +temporaryPassword +temporaryPasswordExpires +forcePasswordChange');
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Utilisateur non trouvé',
+      });
+    }
+
+    // Vérifier l'ancien mot de passe (principal ou temporaire)
+    const isMainPasswordValid = await user.comparePassword(oldPassword);
+    const isTemporaryPasswordValid = await user.compareTemporaryPassword(oldPassword);
+
+    if (!isMainPasswordValid && !isTemporaryPasswordValid) {
+      return res.status(401).json({
+        success: false,
+        message: 'Ancien mot de passe incorrect',
+      });
+    }
+
+    // Vérifier si le mot de passe temporaire a expiré
+    if (isTemporaryPasswordValid && user.temporaryPasswordExpires && new Date() > user.temporaryPasswordExpires) {
+      return res.status(400).json({
+        success: false,
+        message: 'Le mot de passe temporaire a expiré. Veuillez contacter l\'administrateur.',
+      });
+    }
+
+    // Mettre à jour le mot de passe
+    user.password = newPassword;
+    user.temporaryPassword = null;
+    user.temporaryPasswordExpires = null;
+    user.forcePasswordChange = false;
+    await user.save();
+
+    // Générer un nouveau token
+    const token = generateToken(user._id);
+
+    // Retourner les données (sans le mot de passe)
+    const userData = user.toObject();
+    delete userData.password;
+    delete userData.temporaryPassword;
+    delete userData.temporaryPasswordExpires;
+
+    res.json({
+      success: true,
+      message: 'Mot de passe modifié avec succès',
+      data: {
+        token,
+        user: userData,
+      },
+    });
+  } catch (error) {
+    console.error('Erreur change-password:', error);
     return res.status(500).json({
       success: false,
       message: 'Erreur serveur. Veuillez réessayer.',

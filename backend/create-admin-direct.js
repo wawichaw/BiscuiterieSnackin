@@ -7,7 +7,6 @@
 
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
-import bcrypt from 'bcryptjs';
 import User from './models/User.model.js';
 
 dotenv.config();
@@ -36,15 +35,11 @@ async function createAdminDirect() {
       process.exit(1);
     }
 
-    // Hasher le mot de passe manuellement (comme le fait le modèle)
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(adminData.password, salt);
-
-    // Créer l'admin directement dans MongoDB
+    // Créer l'admin directement dans MongoDB (le modèle va hasher le mot de passe automatiquement)
     const admin = await User.create({
       name: adminData.name,
       email: adminData.email,
-      password: hashedPassword,
+      password: adminData.password, // Le modèle va hasher ce mot de passe
       role: adminData.role,
       isAdmin: adminData.isAdmin,
     });

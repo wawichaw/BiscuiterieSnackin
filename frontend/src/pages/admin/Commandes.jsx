@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
+import { libellePointAvecAdresse, libelleVilleDepuisSlug } from '../../utils/ramassage';
 import { libellePointAvecAdresse, libelleVilleDepuisSlug } from '../../utils/ramassage';
 import { getSourceDecouverteLabel } from '../../utils/sourceDecouverte';
 import './Commandes.css';
@@ -322,6 +324,7 @@ const CommandeCard = ({
 };
 
 const AdminCommandes = () => {
+  const { isAdmin } = useAuth();
   const [commandes, setCommandes] = useState([]);
   const [lieuxRamassage, setLieuxRamassage] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -489,9 +492,11 @@ const AdminCommandes = () => {
           </p>
         </div>
         <div className="commandes-header-actions">
-          <Link to="/admin/statistiques" className="btn outline btn-stats-header">
-            📊 Statistiques
-          </Link>
+          {isAdmin && (
+            <Link to="/admin/statistiques" className="btn outline btn-stats-header">
+              📊 Statistiques
+            </Link>
+          )}
           <Link to="/admin/lien-paiement" className="btn primary btn-lien-paiement-header">
             🔗 Créer un lien de paiement
           </Link>

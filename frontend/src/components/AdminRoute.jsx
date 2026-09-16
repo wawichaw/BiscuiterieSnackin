@@ -2,8 +2,8 @@ import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
-const AdminRoute = ({ children }) => {
-  const { user, isAdmin, loading } = useAuth();
+const AdminRoute = ({ children, allowAssistant = false }) => {
+  const { user, isAdmin, isAssistant, loading } = useAuth();
 
   if (loading) {
     return <div>Chargement...</div>;
@@ -13,7 +13,8 @@ const AdminRoute = ({ children }) => {
     return <Navigate to="/login" replace />;
   }
 
-  if (!isAdmin) {
+  const allowed = isAdmin || (allowAssistant && isAssistant);
+  if (!allowed) {
     return <Navigate to="/" replace />;
   }
 
@@ -21,4 +22,3 @@ const AdminRoute = ({ children }) => {
 };
 
 export default AdminRoute;
-

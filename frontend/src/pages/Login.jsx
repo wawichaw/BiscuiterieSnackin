@@ -28,7 +28,22 @@ const Login = () => {
     const result = await login(email, password, recaptchaToken);
 
     if (result.success) {
-      navigate('/');
+      const roleUser = result.user;
+      const forcePasswordChange = result.forcePasswordChange;
+      
+      // Si l'utilisateur doit changer son mot de passe, rediriger vers la page de changement
+      if (forcePasswordChange) {
+        navigate('/change-password');
+        return;
+      }
+      
+      if (roleUser?.isAdmin || roleUser?.role === 'admin') {
+        navigate('/admin/dashboard');
+      } else if (roleUser?.role === 'assistant') {
+        navigate('/admin/commandes');
+      } else {
+        navigate('/');
+      }
     } else {
       setError(result.message || 'Erreur de connexion');
     }
@@ -43,7 +58,14 @@ const Login = () => {
     const result = await loginGoogle(response.credential);
 
     if (result.success) {
-      navigate('/');
+      const roleUser = result.user;
+      if (roleUser?.isAdmin || roleUser?.role === 'admin') {
+        navigate('/admin/dashboard');
+      } else if (roleUser?.role === 'assistant') {
+        navigate('/admin/commandes');
+      } else {
+        navigate('/');
+      }
     } else {
       setError(result.message || 'Erreur de connexion Google');
     }

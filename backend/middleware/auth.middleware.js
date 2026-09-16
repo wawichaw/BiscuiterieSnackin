@@ -50,7 +50,7 @@ export const isAdmin = async (req, res, next) => {
       });
     }
 
-    if (!user.isAdmin) {
+    if (!user.isAdmin && user.role !== 'admin') {
       return res.status(403).json({
         success: false,
         message: 'Accès refusé. Administrateur requis.',
@@ -61,6 +61,47 @@ export const isAdmin = async (req, res, next) => {
     next();
   } catch (error) {
     console.error('Erreur isAdmin middleware:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la vérification des permissions',
+    });
+  }
+};
+
+export const peutGererCommandes = (user) =>
+  !!(user && (user.isAdmin || user.role === 'admin' || user.role === 'assistant'));
+
+/** Admin ou assistant : commandes et liens de paiement */
+export const isStaff = async (req, res, next) => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentification requise. Veuillez vous connecter.',
+      });
+    }
+
+    const User = (await import('../models/User.model.js')).default;
+    const user = await User.findById(req.userId);
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Utilisateur non trouvé.',
+      });
+    }
+
+    if (!peutGererCommandes(user)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Accès refusé. Accès assistant ou administrateur requis.',
+      });
+    }
+
+    req.user = user;
+    next();
+  } catch (error) {
+    console.error('Erreur isStaff middleware:', error);
     return res.status(500).json({
       success: false,
       message: 'Erreur lors de la vérification des permissions',

@@ -44,13 +44,13 @@ export const AuthProvider = ({ children }) => {
         password,
         recaptchaToken 
       });
-      const { token: newToken, user: userData } = response.data.data;
+      const { token: newToken, user: userData, forcePasswordChange } = response.data.data;
       
       setToken(newToken);
       setUser(userData);
       localStorage.setItem('auth_token', newToken);
       
-      return { success: true };
+      return { success: true, user: userData, forcePasswordChange };
     } catch (error) {
       return {
         success: false,
@@ -93,7 +93,7 @@ export const AuthProvider = ({ children }) => {
       setUser(userData);
       localStorage.setItem('auth_token', newToken);
       
-      return { success: true };
+      return { success: true, user: userData };
     } catch (error) {
       return {
         success: false,
@@ -115,6 +115,8 @@ export const AuthProvider = ({ children }) => {
   };
 
   const isAdmin = user && (user.isAdmin || user.role === 'admin');
+  const isAssistant = user && user.role === 'assistant' && !isAdmin;
+  const isStaff = isAdmin || isAssistant;
 
   const value = {
     user,
@@ -125,6 +127,8 @@ export const AuthProvider = ({ children }) => {
     loginGoogle,
     logout,
     isAdmin,
+    isAssistant,
+    isStaff,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

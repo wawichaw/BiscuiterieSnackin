@@ -1,0 +1,153 @@
+.admin-assistants-page {
+  max-width: 720px;
+  margin: 40px auto;
+  padding: 0 20px;
+}
+
+.assistants-header h1 {
+  font-size: clamp(1.5rem, 4vw, 2.25rem);
+  color: var(--cherry);
+  margin: 0 0 8px;
+}
+
+.assistants-header p {
+  color: #555;
+  line-height: 1.5;
+  margin: 0 0 24px;
+}
+
+.assistants-alert {
+  padding: 12px 16px;
+  border-radius: 10px;
+  margin-bottom: 16px;
+}
+
+.assistants-alert.error {
+  background: #fde8e8;
+  color: #9b1c1c;
+}
+
+.assistants-alert.success {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.assistants-alert.info {
+  background: #e3f2fd;
+  color: #1565c0;
+  border: 1px solid #bbdefb;
+}
+
+.password-display {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 12px 0;
+  padding: 12px;
+  background: #f5f5f5;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+}
+
+.password-display code {
+  flex: 1;
+  font-family: 'Courier New', monospace;
+  font-size: 1.1rem;
+  color: #333;
+  word-break: break-all;
+}
+
+.btn-copy {
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.3s;
+}
+
+.btn-copy:hover {
+  background: #5568d3;
+}
+
+.password-info {
+  margin: 8px 0 0 0;
+  font-size: 0.9rem;
+  color: #666;
+  line-height: 1.4;
+}
+
+.assistants-form,
+.assistants-liste {
+  background: #fff;
+  border: 2px solid rgba(160, 22, 43, 0.12);
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 16px rgba(160, 22, 43, 0.08);
+}
+
+.assistants-form h2,
+.assistants-liste h2 {
+  margin: 0 0 16px;
+  font-size: 1.15rem;
+}
+
+.assistants-form label {
+  display: block;
+  font-weight: 600;
+  margin: 12px 0 6px;
+}
+
+.assistants-form input {
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid #ddd;
+  box-sizing: border-box;
+}
+
+.assistants-form .btn {
+  margin-top: 16px;
+}
+
+.assistants-vide {
+  color: #666;
+}
+
+.assistants-liste ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.assistants-liste li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid #f3e6ea;
+}
+
+.assistants-liste li:last-child {
+  border-bottom: none;
+}
+
+.assistants-liste li span {
+  display: block;
+  color: #666;
+  font-size: 14px;
+}
+
+.btn-revoquer {
+  background: #fff5f5;
+  color: #a0162b;
+  border: 1px solid #f3c6ce;
+  border-radius: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
+  font-weight: 600;
+}

@@ -26,6 +26,8 @@ const AdminGalerie = lazy(() => import('./pages/admin/Galerie'));
 const AdminTarifs = lazy(() => import('./pages/admin/Tarifs'));
 const AdminLienPaiement = lazy(() => import('./pages/admin/AdminLienPaiement'));
 const AdminStatistiques = lazy(() => import('./pages/admin/Statistiques'));
+const AdminAssistants = lazy(() => import('./pages/admin/Assistants'));
+const ChangePassword = lazy(() => import('./pages/ChangePassword'));
 const PayerCommande = lazy(() => import('./pages/PayerCommande'));
 
 function RouteFallback() {
@@ -120,6 +122,14 @@ function App() {
 
             {/* Protected routes */}
             <Route
+              path="/change-password"
+              element={
+                <PrivateRoute>
+                  <ChangePassword />
+                </PrivateRoute>
+              }
+            />
+            <Route
               path="/mes-commandes"
               element={
                 <PrivateRoute>
@@ -132,7 +142,7 @@ function App() {
             <Route
               path="/admin"
               element={
-                <AdminRoute>
+                <AdminRoute allowAssistant>
                   <AdminDashboard />
                 </AdminRoute>
               }
@@ -140,7 +150,7 @@ function App() {
             <Route
               path="/admin/dashboard"
               element={
-                <AdminRoute>
+                <AdminRoute allowAssistant>
                   <AdminDashboard />
                 </AdminRoute>
               }
@@ -156,7 +166,7 @@ function App() {
             <Route
               path="/admin/commandes"
               element={
-                <AdminRoute>
+                <AdminRoute allowAssistant>
                   <AdminCommandes />
                 </AdminRoute>
               }
@@ -197,8 +207,16 @@ function App() {
             <Route
               path="/admin/lien-paiement"
               element={
-                <AdminRoute>
+                <AdminRoute allowAssistant>
                   <AdminLienPaiement />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/assistants"
+              element={
+                <AdminRoute>
+                  <AdminAssistants />
                 </AdminRoute>
               }
             />

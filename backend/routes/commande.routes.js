@@ -5,7 +5,7 @@ import stripe from '../config/stripe.js';
 import { finaliserCommandeApresPaiement } from '../services/commande-paiement.service.js';
 import { validerEtCalculerCommande } from '../services/commande-build.service.js';
 import { verifierStockDisponible, decrementerStockCommande } from '../services/stock.service.js';
-import { authenticate, isAdmin } from '../middleware/auth.middleware.js';
+import { authenticate, isAdmin, isStaff, peutGererCommandes } from '../middleware/auth.middleware.js';
 import { getInfosRamassagePourEmail } from '../services/ramassage.service.js';
 import {
   genererTokenPaiement,
@@ -63,12 +63,12 @@ router.get('/', authenticate, async (req, res) => {
     // Vérifier si l'utilisateur est admin
     const User = (await import('../models/User.model.js')).default;
     const user = await User.findById(req.userId);
-    const isAdmin = user && user.isAdmin;
+    const staff = peutGererCommandes(user);
 
     let commandes;
     const archiveesParam = req.query.archivees;
 
-    if (isAdmin) {
+    if (staff) {
       const filtre = {};
       if (archiveesParam === 'true') {
         filtre.archivee = true;
@@ -174,9 +174,8 @@ router.get('/:id', authenticate, async (req, res) => {
     // Vérifier que l'utilisateur peut voir cette commande
     const User = (await import('../models/User.model.js')).default;
     const user = await User.findById(req.userId);
-    const isAdmin = user && user.isAdmin;
-    
-    if (commande.user._id.toString() !== req.userId && !isAdmin) {
+    const proprietaireId = commande.user?._id?.toString() || commande.user?.toString();
+    if (proprietaireId !== req.userId && !peutGererCommandes(user)) {
       return res.status(403).json({
         success: false,
         message: 'Accès refusé',
@@ -236,7 +235,7 @@ const reglesLienPaiementAdmin = [
 // @route   POST /api/commandes/admin/lien-paiement
 // @desc    Créer une commande admin et générer un lien de paiement pour le client
 // @access  Private/Admin
-router.post('/admin/lien-paiement', authenticate, isAdmin, reglesLienPaiementAdmin, async (req, res) => {
+router.post('/admin/lien-paiement', authenticate, isStaff, reglesLienPaiementAdmin, async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -326,7 +325,7 @@ router.post('/admin/lien-paiement', authenticate, isAdmin, reglesLienPaiementAdm
 // @route   POST /api/commandes/admin/lien-paiement/:id/renvoyer
 // @desc    Renvoyer le courriel avec le lien de paiement
 // @access  Private/Admin
-router.post('/admin/lien-paiement/:id/renvoyer', authenticate, isAdmin, async (req, res) => {
+router.post('/admin/lien-paiement/:id/renvoyer', authenticate, isStaff, async (req, res) => {
   try {
     const commande = await Commande.findById(req.params.id).populate('boites.saveurs.biscuit');
     if (!commande) {
@@ -620,7 +619,7 @@ router.post('/', optionalAuth, [
 // @route   PUT /api/commandes/:id
 // @desc    Mettre à jour une commande (admin seulement pour changer le statut)
 // @access  Private/Admin
-router.put('/:id', authenticate, isAdmin, async (req, res) => {
+router.put('/:id', authenticate, isStaff, async (req, res) => {
   try {
     const ancienneCommande = await Commande.findById(req.params.id).populate('user', 'name email');
     
